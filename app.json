@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Vouch",
+    "slug": "vouch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "vouch",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0A0F1E"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vouch.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0F1E"
+      },
+      "package": "com.vouch.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-image-picker",
+        { "photosPermission": "Allow Vouch to access your photos for check-in proof." }
+      ]
+    ]
+  }
+}
