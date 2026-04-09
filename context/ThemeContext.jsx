@@ -1,21 +1,50 @@
-import { createContext, useContext, useState } from 'react'
-import { useColorScheme } from 'react-native'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { Appearance } from 'react-native'
+import { getItem, setItem } from '../utils/storage'
 import { darkColors, lightColors } from '../constants/themes'
 
-const ThemeContext = createContext({ colors: darkColors, scheme: 'dark', toggleTheme: () => {} })
+const STORAGE_KEY = 'vouch_appearance'
+
+const ThemeContext = createContext({
+  colors: darkColors,
+  scheme: 'dark',
+  preference: 'dark',
+  setPreference: () => {},
+  toggleTheme: () => {},
+  isDark: true,
+})
 
 export function ThemeProvider({ children }) {
-  const systemScheme = useColorScheme() ?? 'dark'
-  const [override, setOverride] = useState(null) // null = follow system
+  const [preference, setPreferenceState] = useState('dark') // 'dark' | 'light' | 'system'
+  const [systemScheme, setSystemScheme] = useState(Appearance.getColorScheme() ?? 'dark')
 
-  const scheme = override ?? systemScheme
-  const colors = scheme === 'light' ? lightColors : darkColors
+  useEffect(() => {
+    getItem(STORAGE_KEY).then(val => {
+      if (val === 'light' || val === 'system') setPreferenceState(val)
+    })
+  }, [])
 
-  const toggleTheme = () => setOverride(s => (s ?? systemScheme) === 'dark' ? 'light' : 'dark')
-  const setScheme = (s) => setOverride(s === 'system' ? null : s)
+  // Listen for OS theme changes — applies when preference === 'system'
+  useEffect(() => {
+    const sub = Appearance.addChangeListener(({ colorScheme }) => {
+      setSystemScheme(colorScheme ?? 'dark')
+    })
+    return () => sub.remove()
+  }, [])
+
+  const setPreference = async (pref) => {
+    setPreferenceState(pref)
+    await setItem(STORAGE_KEY, pref)
+  }
+
+  const toggleTheme = () => setPreference(preference === 'dark' ? 'light' : 'dark')
+
+  const resolvedScheme = preference === 'system' ? systemScheme : preference
+  const isDark = resolvedScheme === 'dark'
+  const colors = isDark ? darkColors : lightColors
 
   return (
-    <ThemeContext.Provider value={{ colors, scheme, toggleTheme, setScheme }}>
+    <ThemeContext.Provider value={{ colors, scheme: resolvedScheme, preference, setPreference, toggleTheme, isDark }}>
       {children}
     </ThemeContext.Provider>
   )

@@ -6,9 +6,9 @@ export default function VouchLogo({ size = 28 }) {
   return (
     <View style={{ width: s, height: s }}>
       <Svg width={s} height={s} viewBox="0 0 40 40">
-        {/* Background */}
+        {/* Background — always dark navy */}
         <Path
-          d={`M10 0 H30 Q40 0 40 10 V30 Q40 40 30 40 H10 Q0 40 0 30 V10 Q0 0 10 0`}
+          d="M10 0 H30 Q40 0 40 10 V30 Q40 40 30 40 H10 Q0 40 0 30 V10 Q0 0 10 0"
           fill="#0A0F1E"
         />
         {/* Left person head */}

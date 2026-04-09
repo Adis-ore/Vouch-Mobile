@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState, useMemo } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Animated, StyleSheet } from 'react-native'
+import { useEffect, useState, useMemo } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import VouchLogo from '../../components/shared/VouchLogo'
@@ -7,38 +7,45 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
 import { useTheme } from '../../context/ThemeContext'
-import { CURRENT_USER, ACTIVE_JOURNEY, NOTIFICATIONS } from '../../data/dummy'
+import { useUser } from '../../context/UserContext'
+import { ACTIVE_JOURNEYS, NOTIFICATIONS } from '../../data/dummy'
 import ActiveJourneyCard from '../../components/home/ActiveJourneyCard'
 import StatsRow from '../../components/home/StatsRow'
-import ActivityFeed from '../../components/home/ActivityFeed'
 import EmptyState from '../../components/shared/EmptyState'
 import { JourneyCardSkeleton, StatCardSkeleton } from '../../components/shared/SkeletonLoader'
 
-const CHECKED_IN_TODAY = true
 const unreadCount = NOTIFICATIONS.filter(n => !n.read).length
+
+// Unchecked journeys first, checked-in journeys last
+function sortByPriority(journeys) {
+  const needsCheckin = journeys.filter(j => !j.checkedInToday)
+  const doneToday = journeys.filter(j => j.checkedInToday)
+  return { needsCheckin, doneToday }
+}
 
 export default function Home() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { user } = useUser()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [loading, setLoading] = useState(true)
-  const streakAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-      Animated.timing(streakAnim, { toValue: CURRENT_USER.streak_total, duration: 900, useNativeDriver: false }).start()
-    }, 1200)
+    const timer = setTimeout(() => setLoading(false), 1200)
     return () => clearTimeout(timer)
   }, [])
 
-  const firstName = CURRENT_USER.full_name.split(' ')[0]
+  const firstName = (user?.full_name || 'there').split(' ')[0]
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning,' : hour < 17 ? 'Good afternoon,' : 'Good evening,'
+
+  const { needsCheckin, doneToday } = sortByPriority(ACTIVE_JOURNEYS)
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <VouchLogo size={32} />
@@ -53,9 +60,12 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
-        {loading ? <JourneyCardSkeleton /> : ACTIVE_JOURNEY ? (
-          <ActiveJourneyCard journey={ACTIVE_JOURNEY} checkedInToday={CHECKED_IN_TODAY} />
-        ) : (
+        {loading ? (
+          <>
+            <JourneyCardSkeleton />
+            <JourneyCardSkeleton />
+          </>
+        ) : ACTIVE_JOURNEYS.length === 0 ? (
           <EmptyState
             title="No active journey yet"
             body="Start a journey or join one to track your progress here."
@@ -64,30 +74,50 @@ export default function Home() {
             secondaryLabel="Find one to join"
             onSecondary={() => router.push('/(tabs)/discover')}
           />
-        )}
+        ) : (
+          <>
+            {/* Unchecked journeys — urgent, top */}
+            {needsCheckin.map(j => (
+              <ActiveJourneyCard key={j.id} journey={j} checkedInToday={false} />
+            ))}
 
-        {!loading && (
-          <View style={styles.streakCard}>
-            <View style={styles.streakLeft}>
-              <Ionicons name="flame" size={28} color={colors.accent} />
-              <View>
-                <Animated.Text style={styles.streakCount}>{CURRENT_USER.streak_total}</Animated.Text>
-                <Text style={styles.streakLabel}>day streak</Text>
+            {/* Streak + stats grouped together, between priority and done */}
+            <View style={styles.middleGroup}>
+              <View style={styles.streakCard}>
+                <View style={styles.streakLeft}>
+                  <Ionicons name="flame" size={28} color={colors.accent} />
+                  <View>
+                    <Text style={styles.streakCount}>{user?.current_streak ?? 0}</Text>
+                    <Text style={styles.streakLabel}>day streak</Text>
+                  </View>
+                </View>
+                <Text style={styles.longestStreak}>Best: {user?.longest_streak ?? 0} days</Text>
               </View>
+              <StatsRow
+                journeysCompleted={user?.journeys_completed ?? 0}
+                totalCheckins={(user?.current_streak ?? 0) * 3}
+                reputationScore={user?.reputation_score ?? 0}
+              />
             </View>
-            <Text style={styles.longestStreak}>Longest: {CURRENT_USER.longest_streak} days</Text>
-          </View>
+
+            {/* Checked-in journeys — less urgent, below the grouped block */}
+            {doneToday.length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Done for today</Text>
+                {doneToday.map(j => (
+                  <ActiveJourneyCard key={j.id} journey={j} checkedInToday={true} />
+                ))}
+              </>
+            )}
+          </>
         )}
 
-        {loading ? (
+        {/* Stats row shown during loading state */}
+        {loading && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {[0, 1, 2].map(i => <StatCardSkeleton key={i} />)}
           </View>
-        ) : (
-          <StatsRow journeysCompleted={CURRENT_USER.journeys_completed} totalCheckins={CURRENT_USER.streak_total * 3} reputationScore={CURRENT_USER.reputation_score} />
         )}
-
-        {!loading && <ActivityFeed notifications={NOTIFICATIONS} />}
       </ScrollView>
     </SafeAreaView>
   )
@@ -103,10 +133,12 @@ function makeStyles(colors) {
     name: { fontFamily: fonts.display, fontSize: 26, color: colors.textPrimary, lineHeight: 32 },
     bellWrap: { position: 'relative', width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
     unreadDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.bg },
+    middleGroup: { gap: spacing.sm },
     streakCard: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     streakCount: { fontFamily: fonts.display, fontSize: 28, color: colors.accent, lineHeight: 32 },
     streakLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
     longestStreak: { fontFamily: fonts.body, fontSize: 12, color: colors.textMuted },
+    sectionLabel: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 },
   })
 }

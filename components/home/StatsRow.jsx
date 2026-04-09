@@ -1,55 +1,33 @@
 import { View, Text, StyleSheet } from 'react-native'
-import { colors } from '../../constants/colors'
+import { useTheme } from '../../context/ThemeContext'
 import { fonts } from '../../constants/fonts'
 
-function StatItem({ label, value }) {
+function StatItem({ label, value, colors }) {
   return (
     <View style={styles.item}>
-      <Text style={styles.value}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.value, { color: colors.textPrimary }]}>{value}</Text>
+      <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
     </View>
   )
 }
 
 export default function StatsRow({ journeysCompleted, totalCheckins, reputationScore }) {
+  const { colors } = useTheme()
   return (
-    <View style={styles.row}>
-      <StatItem label="Completed" value={journeysCompleted} />
-      <View style={styles.divider} />
-      <StatItem label="Check-ins" value={totalCheckins} />
-      <View style={styles.divider} />
-      <StatItem label="Reputation" value={reputationScore} />
+    <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <StatItem label="Completed" value={journeysCompleted} colors={colors} />
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+      <StatItem label="Check-ins" value={totalCheckins} colors={colors} />
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+      <StatItem label="Reputation" value={reputationScore} colors={colors} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-  },
-  item: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-  },
-  value: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 20,
-    color: colors.textPrimary,
-  },
-  label: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  divider: {
-    width: 1,
-    backgroundColor: colors.border,
-    marginVertical: 4,
-  },
+  row: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, paddingVertical: 14 },
+  item: { flex: 1, alignItems: 'center', gap: 3 },
+  value: { fontFamily: fonts.bodyBold, fontSize: 20 },
+  label: { fontFamily: fonts.body, fontSize: 11 },
+  divider: { width: 1, marginVertical: 4 },
 })

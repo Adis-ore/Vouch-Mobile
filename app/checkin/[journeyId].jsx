@@ -65,7 +65,7 @@ export default function CheckinScreen() {
   const charColor = note.length >= MIN_CHARS ? colors.success : note.length > MIN_CHARS * 0.6 ? colors.accent : colors.textMuted
 
   const pickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.7 })
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: false, quality: 0.8 })
     if (!result.canceled) setProofUri(result.assets[0].uri)
   }
 

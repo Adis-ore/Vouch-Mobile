@@ -112,7 +112,7 @@ export default function Welcome() {
       </Animated.View>
 
       <Animated.View style={[styles.buttons, { opacity: buttonsOpacity }]}>
-        <Button label="Get Started" onPress={() => router.push('/(auth)/onboarding')} />
+        <Button label="Get Started" onPress={() => router.push('/(auth)/signup')} />
         <Button label="I have an account" variant="outline" onPress={() => router.push('/(auth)/login')} />
       </Animated.View>
     </SafeAreaView>

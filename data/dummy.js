@@ -21,18 +21,35 @@ export const CURRENT_USER = {
   notification_milestones: true,
   notification_messages: false,
   notification_reminders: true,
+  plan: 'free',
 }
 
 export const BADGES = [
-  { key: 'first_step',    name: 'First Step',     icon: 'footsteps-outline',      earned: true  },
-  { key: 'streak_7',      name: 'On Fire',         icon: 'flame',                  earned: true  },
-  { key: 'streak_14',     name: 'Two Weeks',       icon: 'barbell-outline',        earned: true  },
-  { key: 'streak_30',     name: 'Unstoppable',     icon: 'flash-outline',          earned: false },
-  { key: 'committed',     name: 'Committed',       icon: 'checkmark-circle-outline', earned: true  },
-  { key: 'proof_master',  name: 'Proof Master',    icon: 'camera-outline',         earned: false },
-  { key: 'trusted',       name: 'Trusted',         icon: 'shield-checkmark-outline', earned: true  },
-  { key: 'veteran',       name: 'Veteran',         icon: 'ribbon-outline',         earned: false },
-  { key: 'stake_survivor',name: 'Stake Survivor',  icon: 'wallet-outline',         earned: false },
+  { key: 'first_step',    name: 'First Step',      icon: 'footsteps-outline',         earned: true,  earnedDate: '2025-01-01', desc: 'Joined your first journey.',          howToEarn: 'Join any journey on Vouch.' },
+  { key: 'committed',     name: 'Committed',        icon: 'checkmark-circle-outline',  earned: true,  earnedDate: '2025-01-03', desc: 'Completed your first check-in.',      howToEarn: 'Submit your first daily check-in.' },
+  { key: 'streak_3',      name: 'Getting Started',  icon: 'sparkles-outline',          earned: true,  earnedDate: '2025-01-04', desc: '3-day streak achieved.',              howToEarn: 'Check in for 3 consecutive days.' },
+  { key: 'streak_7',      name: 'On Fire',          icon: 'flame',                     earned: true,  earnedDate: '2025-01-08', desc: '7-day streak. You showed up.',        howToEarn: 'Check in for 7 consecutive days.' },
+  { key: 'streak_14',     name: 'Two Weeks',        icon: 'barbell-outline',           earned: true,  earnedDate: '2025-01-15', desc: 'Two full weeks without breaking.',    howToEarn: 'Check in for 14 consecutive days.' },
+  { key: 'trusted',       name: 'Trusted',          icon: 'shield-checkmark-outline',  earned: true,  earnedDate: '2025-01-10', desc: 'Your check-ins are verified.',        howToEarn: 'Have 10+ check-ins approved by peers.' },
+  { key: 'streak_30',     name: 'Unstoppable',      icon: 'flash-outline',             earned: false, earnedDate: null, desc: '30-day streak. No excuses.',          howToEarn: 'Check in for 30 consecutive days.' },
+  { key: 'streak_60',     name: 'Elite',            icon: 'trophy-outline',            earned: false, earnedDate: null, desc: '60 days of unbroken commitment.',     howToEarn: 'Check in for 60 consecutive days.' },
+  { key: 'streak_100',    name: 'Centurion',        icon: 'medal-outline',             earned: false, earnedDate: null, desc: '100-day streak. Legendary.',          howToEarn: 'Check in for 100 consecutive days.' },
+  { key: 'proof_5',       name: 'Proof Starter',    icon: 'camera-outline',            earned: false, earnedDate: null, desc: 'First 5 photo/video check-ins.',      howToEarn: 'Submit 5 check-ins with photo or video proof.' },
+  { key: 'proof_20',      name: 'Proof Master',     icon: 'videocam-outline',          earned: false, earnedDate: null, desc: '20 verified proof check-ins.',         howToEarn: 'Submit 20 check-ins with photo or video proof.' },
+  { key: 'veteran',       name: 'Veteran',          icon: 'ribbon-outline',            earned: false, earnedDate: null, desc: 'Completed 5 journeys.',               howToEarn: 'Complete 5 journeys from start to finish.' },
+  { key: 'legend',        name: 'Legend',           icon: 'star-outline',              earned: false, earnedDate: null, desc: 'Completed 10 journeys.',              howToEarn: 'Complete 10 journeys from start to finish.' },
+  { key: 'stake_survivor',name: 'Stake Survivor',   icon: 'wallet-outline',            earned: false, earnedDate: null, desc: 'Completed a staked journey.',         howToEarn: 'Complete any journey that had a security deposit.' },
+  { key: 'group_leader',  name: 'Group Leader',     icon: 'people-outline',            earned: false, earnedDate: null, desc: 'Created a journey others joined.',     howToEarn: 'Create a journey that gets at least 2 other members.' },
+  { key: 'early_bird',    name: 'Early Bird',       icon: 'sunny-outline',             earned: false, earnedDate: null, desc: 'Checked in before 7am for 7 days.',   howToEarn: 'Submit a check-in before 7am on 7 different days.' },
+  { key: 'multi_tasker',  name: 'Multi-Tasker',     icon: 'repeat-outline',            earned: false, earnedDate: null, desc: 'Active in 3 journeys at once.',        howToEarn: 'Be an active member in 3 simultaneous journeys.' },
+  { key: 'global',        name: 'Global',           icon: 'globe-outline',             earned: false, earnedDate: null, desc: 'Partnered with someone in another country.', howToEarn: 'Complete a journey with a partner from a different country.' },
+]
+
+export const JOURNEY_MEMBERS = [
+  { user_id: 'user-1', full_name: 'Adis Afolabi',    avatar_url: null, current_streak: 14, total_checkins: 14, role: 'member'  },
+  { user_id: 'user-2', full_name: 'Tunde Olatunji',  avatar_url: null, current_streak: 12, total_checkins: 13, role: 'creator' },
+  { user_id: 'user-3', full_name: 'Chioma Nwosu',    avatar_url: null, current_streak: 14, total_checkins: 14, role: 'member'  },
+  { user_id: 'user-4', full_name: 'Emmanuel Bello',  avatar_url: null, current_streak: 9,  total_checkins: 11, role: 'member'  },
 ]
 
 export const ACTIVE_JOURNEY = {
@@ -54,13 +71,56 @@ export const ACTIVE_JOURNEY = {
   country: 'Nigeria',
   region: 'Lagos',
   creator_id: 'user-2',
+  members: JOURNEY_MEMBERS,
 }
 
-export const JOURNEY_MEMBERS = [
-  { user_id: 'user-1', full_name: 'Adis Afolabi',    avatar_url: null, current_streak: 14, total_checkins: 14, role: 'member'  },
-  { user_id: 'user-2', full_name: 'Tunde Olatunji',  avatar_url: null, current_streak: 12, total_checkins: 13, role: 'creator' },
-  { user_id: 'user-3', full_name: 'Chioma Nwosu',    avatar_url: null, current_streak: 14, total_checkins: 14, role: 'member'  },
-  { user_id: 'user-4', full_name: 'Emmanuel Bello',  avatar_url: null, current_streak: 9,  total_checkins: 11, role: 'member'  },
+export const ACTIVE_JOURNEYS = [
+  {
+    id: 'journey-1',
+    title: 'Learn Python in 30 Days',
+    category: 'Learning',
+    duration_days: 30,
+    days_elapsed: 14,
+    progress_percent: 47,
+    current_participants: 4,
+    stake_amount: 1000,
+    stake_currency: 'NGN',
+    checkedInToday: false,
+    members: JOURNEY_MEMBERS,
+  },
+  {
+    id: 'journey-2',
+    title: 'Run 5km Every Morning — 21 Days',
+    category: 'Fitness',
+    duration_days: 21,
+    days_elapsed: 9,
+    progress_percent: 43,
+    current_participants: 3,
+    stake_amount: 500,
+    stake_currency: 'NGN',
+    checkedInToday: true,
+    members: [
+      { user_id: 'user-1', full_name: 'Adis Afolabi',   avatar_url: null, role: 'member'  },
+      { user_id: 'user-5', full_name: 'Seun Adeleke',   avatar_url: null, role: 'creator' },
+      { user_id: 'user-6', full_name: 'Bimpe Adeyinka', avatar_url: null, role: 'member'  },
+    ],
+  },
+  {
+    id: 'journey-3',
+    title: 'Build a SaaS Product in 60 Days',
+    category: 'Career',
+    duration_days: 60,
+    days_elapsed: 22,
+    progress_percent: 37,
+    current_participants: 2,
+    stake_amount: 2000,
+    stake_currency: 'NGN',
+    checkedInToday: false,
+    members: [
+      { user_id: 'user-1', full_name: 'Adis Afolabi',  avatar_url: null, role: 'member'  },
+      { user_id: 'user-7', full_name: 'Kola Adeyemi',  avatar_url: null, role: 'creator' },
+    ],
+  },
 ]
 
 export const MILESTONES = [
@@ -158,6 +218,38 @@ export const DISCOVER_JOURNEYS = [
     days_elapsed: 0, progress_percent: 0,
     creator: { full_name: 'Kwame Asante', reputation_score: 83 },
   },
+  {
+    id: 'j-7', title: 'Save ₦50,000 in 60 Days',
+    description: 'Cut one expense, automate a transfer, log it daily. Prove it to the group with a screenshot. Accountability makes saving stick.',
+    category: 'Finance', duration_days: 60, max_participants: 5, current_participants: 4,
+    stake_amount: 1000, country: 'Nigeria', region: 'Lagos',
+    days_elapsed: 0, progress_percent: 0,
+    creator: { full_name: 'Bimpe Adeyinka', reputation_score: 89 },
+  },
+  {
+    id: 'j-8', title: 'No Phone for the First Hour of Every Day',
+    description: '30 days. Wake up, no screen for 60 minutes. Journal, stretch, or just be present. Log your morning activity instead.',
+    category: 'Habit', duration_days: 30, max_participants: 6, current_participants: 5,
+    stake_amount: 500, country: 'Nigeria', region: 'Abuja',
+    days_elapsed: 0, progress_percent: 0,
+    creator: { full_name: 'Zara Musa', reputation_score: 78 },
+  },
+  {
+    id: 'j-9', title: 'Land a Remote Job in 45 Days',
+    description: 'Daily applications, one skill learned per week, portfolio updated by day 30. Members review each other\'s CVs and do mock interviews.',
+    category: 'Career', duration_days: 45, max_participants: 3, current_participants: 1,
+    stake_amount: 2500, country: 'Kenya', region: 'Nairobi',
+    days_elapsed: 0, progress_percent: 0,
+    creator: { full_name: 'Amara Wanjiku', reputation_score: 92 },
+  },
+  {
+    id: 'j-10', title: 'Workout Every Day for 30 Days',
+    description: 'Any workout counts — gym, home, 20-min HIIT, or a long walk. Just move your body, log it, and keep the streak alive.',
+    category: 'Fitness', duration_days: 30, max_participants: 8, current_participants: 3,
+    stake_amount: 750, country: 'Nigeria', region: 'Rivers',
+    days_elapsed: 0, progress_percent: 0,
+    creator: { full_name: 'Emeka Okafor', reputation_score: 85 },
+  },
 ]
 
 export const MY_PAST_JOURNEYS = [
@@ -172,10 +264,43 @@ export const CHECKIN_HEATMAP = Array.from({ length: 30 }, (_, i) => ({
 }))
 
 export const NOTIFICATIONS = [
-  { id: 'n-1', type: 'checkin',   title: 'Tunde checked in',        body: 'Tunde just checked in on Learn Python. Go verify!',              read: false, created_at: '2025-01-14T09:00:00Z' },
-  { id: 'n-2', type: 'streak',    title: '14-day streak!',           body: 'You have checked in 14 days in a row. Incredible.',              read: false, created_at: '2025-01-14T00:05:00Z' },
-  { id: 'n-3', type: 'milestone', title: 'Week 2 unlocked',          body: 'Milestone 1 complete. Week 2 is now open for Learn Python.',     read: true,  created_at: '2025-01-07T23:00:00Z' },
-  { id: 'n-4', type: 'badge',     title: 'Badge earned: Two Weeks',  body: 'You just earned the Two Weeks Strong badge!',                    read: true,  created_at: '2025-01-14T00:05:00Z' },
+  { id: 'n-1',  type: 'checkin',   title: 'Tunde checked in',           body: 'Tunde just checked in on Learn Python. Tap to verify!',                        read: false, created_at: '2025-01-14T09:00:00Z', route: '/journey/journey-1', params: { tab: 'checkins' } },
+  { id: 'n-2',  type: 'streak',    title: '14-day streak!',              body: 'You have checked in 14 days in a row. Incredible.',                            read: false, created_at: '2025-01-14T00:05:00Z', route: '/(tabs)/profile',    params: {} },
+  { id: 'n-3',  type: 'milestone', title: 'Week 2 unlocked',             body: 'Milestone 1 complete. Week 2 is now open for Learn Python.',                   read: true,  created_at: '2025-01-07T23:00:00Z', route: '/journey/journey-1', params: { tab: 'overview' } },
+  { id: 'n-4',  type: 'badge',     title: 'Badge earned: Two Weeks',     body: 'You just earned the Two Weeks Strong badge. Keep going!',                      read: true,  created_at: '2025-01-14T00:05:00Z', route: '/(tabs)/profile',    params: {} },
+  { id: 'n-5',  type: 'checkin',   title: 'Chioma checked in',           body: 'Chioma logged her check-in on Learn Python. Tap to verify her progress.',      read: false, created_at: '2025-01-14T08:30:00Z', route: '/journey/journey-1', params: { tab: 'checkins' } },
+  { id: 'n-6',  type: 'checkin',   title: 'Emmanuel checked in',         body: 'Emmanuel is back on track after missing 2 days. Go show some support!',       read: true,  created_at: '2025-01-14T10:15:00Z', route: '/journey/journey-1', params: { tab: 'checkins' } },
+  { id: 'n-7',  type: 'streak',    title: 'Tunde is on 12 days',         body: 'Tunde is on a 12-day streak on Learn Python. He needs 2 more to catch you.',  read: true,  created_at: '2025-01-13T00:05:00Z', route: '/journey/journey-1', params: { tab: 'members' } },
+  { id: 'n-8',  type: 'milestone', title: 'Reflection due today',        body: 'Week 2 reflection is open. Both partners must submit before Week 3 unlocks.',  read: false, created_at: '2025-01-14T06:00:00Z', route: '/milestone/m-2',     params: {} },
+  { id: 'n-9',  type: 'badge',     title: 'Badge earned: Committed',     body: "You've completed a full journey. The Committed badge is now on your profile.", read: true,  created_at: '2025-01-10T12:00:00Z', route: '/(tabs)/profile',    params: {} },
+  { id: 'n-10', type: 'checkin',   title: "You haven't checked in yet",  body: "Day 14 is not done yet. Log your check-in to keep your streak alive.",        read: false, created_at: '2025-01-14T18:00:00Z', route: '/checkin/journey-1', params: {} },
 ]
 
-export const CATEGORIES = ['Learning', 'Fitness', 'Habit', 'Career', 'Faith', 'Finance', 'Custom']
+export const STREAK_MILESTONES = [
+  { days: 3,   key: 'streak_3',   label: 'Getting Started',  icon: 'sparkles-outline' },
+  { days: 7,   key: 'streak_7',   label: 'On Fire',          icon: 'flame' },
+  { days: 14,  key: 'streak_14',  label: 'Two Weeks',        icon: 'barbell-outline' },
+  { days: 21,  key: 'streak_21',  label: 'Three Weeks',      icon: 'flash-outline' },
+  { days: 30,  key: 'streak_30',  label: 'Unstoppable',      icon: 'walk-outline' },
+  { days: 45,  key: 'streak_45',  label: 'Relentless',       icon: 'navigate-circle-outline' },
+  { days: 60,  key: 'streak_60',  label: 'Elite',            icon: 'trophy-outline' },
+  { days: 75,  key: 'streak_75',  label: 'Iron Will',        icon: 'fitness-outline' },
+  { days: 90,  key: 'streak_90',  label: 'Quarter Year',     icon: 'ribbon-outline' },
+  { days: 100, key: 'streak_100', label: 'Centurion',        icon: 'medal-outline' },
+  { days: 150, key: 'streak_150', label: 'Legendary',        icon: 'star-outline' },
+  { days: 180, key: 'streak_180', label: 'Half Year',        icon: 'sunny-outline' },
+  { days: 365, key: 'streak_365', label: 'One Year',         icon: 'infinite-outline' },
+]
+
+export const CATEGORIES = [
+  { id: 'learning',      label: 'Learning',       color: '#5B9CF6' },
+  { id: 'fitness',       label: 'Fitness',         color: '#3ECFAA' },
+  { id: 'habit',         label: 'Habit',           color: '#E8A838' },
+  { id: 'career',        label: 'Career',          color: '#9B72CF' },
+  { id: 'faith',         label: 'Faith',           color: '#F0A500' },
+  { id: 'finance',       label: 'Finance',         color: '#E85D4A' },
+  { id: 'mental_health', label: 'Mental health',   color: '#5B9CF6' },
+  { id: 'creative',      label: 'Creative',        color: '#D4537E' },
+  { id: 'relationships', label: 'Relationships',   color: '#E85D4A' },
+  { id: 'custom',        label: 'Custom',          color: '#8A8680' },
+]

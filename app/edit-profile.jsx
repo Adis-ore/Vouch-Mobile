@@ -6,19 +6,20 @@ import { Ionicons } from '@expo/vector-icons'
 import { fonts } from '../constants/fonts'
 import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
-import { CURRENT_USER } from '../data/dummy'
+import { useUser } from '../context/UserContext'
 import Avatar from '../components/shared/Avatar'
 import Button from '../components/shared/Button'
 
 export default function EditProfile() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { user, updateUser } = useUser()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
-  const [fullName, setFullName] = useState(CURRENT_USER.full_name)
-  const [username, setUsername] = useState(CURRENT_USER.username)
-  const [bio, setBio] = useState(CURRENT_USER.bio)
-  const [region, setRegion] = useState(CURRENT_USER.region)
+  const [fullName, setFullName] = useState(user?.full_name ?? '')
+  const [username, setUsername] = useState(user?.username ?? '')
+  const [bio, setBio] = useState(user?.bio ?? '')
+  const [region, setRegion] = useState(user?.region ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -26,6 +27,7 @@ export default function EditProfile() {
     if (!fullName.trim()) return
     setSaving(true)
     await new Promise(r => setTimeout(r, 800))
+    updateUser({ full_name: fullName.trim(), username: username.trim(), bio: bio.trim(), region: region.trim() })
     setSaving(false)
     setSaved(true)
     setTimeout(() => router.back(), 1000)
@@ -43,12 +45,15 @@ export default function EditProfile() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.avatarWrap}>
-            <Avatar name={fullName || CURRENT_USER.full_name} size={80} />
-            <TouchableOpacity style={styles.avatarEdit} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.avatarWrap} onPress={async () => {
+            const result = await (await import('expo-image-picker')).launchImageLibraryAsync({ allowsEditing: false, quality: 0.7 })
+            if (!result.canceled) updateUser({ avatar_url: result.assets[0].uri })
+          }} activeOpacity={0.8}>
+            <Avatar name={fullName || user?.full_name || 'You'} uri={user?.avatar_url} size={80} />
+            <View style={styles.avatarEdit}>
               <Ionicons name="camera-outline" size={14} color={colors.bg} />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
 
           <Field label="Full name" value={fullName} onChange={setFullName} placeholder="Your full name" colors={colors} styles={styles} />
           <Field label="Username" value={username} onChange={setUsername} placeholder="username" prefix="@" colors={colors} styles={styles} />
@@ -58,7 +63,7 @@ export default function EditProfile() {
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Email</Text>
             <View style={[styles.input, styles.inputReadOnly]}>
-              <Text style={styles.readOnlyText}>{CURRENT_USER.email}</Text>
+              <Text style={styles.readOnlyText}>{user?.email ?? '—'}</Text>
               <Ionicons name="lock-closed-outline" size={14} color={colors.textMuted} />
             </View>
             <Text style={styles.fieldHint}>Contact support to change your email.</Text>

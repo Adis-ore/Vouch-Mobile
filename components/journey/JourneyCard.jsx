@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, Animated, Share, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../context/ThemeContext'
@@ -16,7 +16,7 @@ const CATEGORY_COLORS = {
   Custom: '#8A8680',
 }
 
-export default function JourneyCard({ journey, index = 0 }) {
+export default function JourneyCard({ journey, index = 0, onJoin }) {
   const router = useRouter()
   const { colors } = useTheme()
   const opacity = useRef(new Animated.Value(0)).current
@@ -32,9 +32,21 @@ export default function JourneyCard({ journey, index = 0 }) {
   const spotsLeft = journey.max_participants - journey.current_participants
   const catColor = CATEGORY_COLORS[journey.category] ?? colors.textMuted
 
+  const handleShare = async (e) => {
+    try {
+      await Share.share({
+        message: `Check out this journey on Vouch: "${journey.title}" — ${journey.duration_days} days. Join here: https://vouch.app/journey/${journey.id}`,
+      })
+    } catch (_) {}
+  }
+
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push(`/journey/${journey.id}`)} activeOpacity={0.88}>
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => onJoin ? onJoin() : router.push(`/journey/${journey.id}`)}
+        activeOpacity={0.88}
+      >
         <View style={[styles.cover, { backgroundColor: catColor + '22' }]}>
           <View style={styles.coverBadges}>
             <View style={[styles.catBadge, { backgroundColor: catColor + '22', borderColor: catColor + '44' }]}>
@@ -50,6 +62,10 @@ export default function JourneyCard({ journey, index = 0 }) {
               </View>
             )}
           </View>
+          {/* Share icon top-right */}
+          <TouchableOpacity style={[styles.shareIconBtn, { backgroundColor: colors.bg + 'CC' }]} onPress={handleShare} activeOpacity={0.8} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <Ionicons name="share-social-outline" size={14} color={colors.textPrimary} />
+          </TouchableOpacity>
           <View style={[styles.coverShape, { borderColor: catColor + '33' }]} />
         </View>
 
@@ -71,8 +87,12 @@ export default function JourneyCard({ journey, index = 0 }) {
           </View>
           <View style={styles.footer}>
             <Text style={[styles.spots, { color: colors.textMuted }]}>{spotsLeft > 0 ? `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : 'Full'}</Text>
-            {spotsLeft > 0 && (
-              <TouchableOpacity style={[styles.joinBtn, { backgroundColor: colors.accent }]} onPress={() => router.push(`/journey/${journey.id}`)} activeOpacity={0.8}>
+            {spotsLeft > 0 && onJoin && (
+              <TouchableOpacity
+                style={[styles.joinBtn, { backgroundColor: colors.accent }]}
+                onPress={(e) => { e.stopPropagation?.(); onJoin() }}
+                activeOpacity={0.8}
+              >
                 <Text style={[styles.joinText, { color: colors.bg }]}>Join →</Text>
               </TouchableOpacity>
             )}
@@ -93,7 +113,8 @@ const styles = StyleSheet.create({
   stakeText: { fontFamily: fonts.bodyMedium, fontSize: 11 },
   freeBadge: { backgroundColor: 'rgba(62,207,170,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(62,207,170,0.3)' },
   freeText: { fontFamily: fonts.bodyMedium, fontSize: 11 },
-  coverShape: { position: 'absolute', right: 20, top: 20, width: 60, height: 60, borderRadius: 30, borderWidth: 1.5 },
+  shareIconBtn: { position: 'absolute', top: 10, right: 10, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  coverShape: { position: 'absolute', right: 50, top: 20, width: 60, height: 60, borderRadius: 30, borderWidth: 1.5 },
   content: { padding: 14, gap: 8 },
   title: { fontFamily: fonts.display, fontSize: 16, lineHeight: 22 },
   creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -102,7 +123,7 @@ const styles = StyleSheet.create({
   location: { fontFamily: fonts.body, fontSize: 12 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   meta: { fontFamily: fonts.body, fontSize: 12 },
-  metaDot: { },
+  metaDot: {},
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   spots: { fontFamily: fonts.body, fontSize: 12 },
   joinBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },

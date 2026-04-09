@@ -10,36 +10,45 @@ import { saveSession } from '../_layout'
 import Button from '../../components/shared/Button'
 import TextInput from '../../components/shared/TextInput'
 
-function GoogleLogo({ size = 18 }) {
+function GoogleIcon() {
   return (
-    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ fontSize: size - 2, lineHeight: size, fontWeight: '700', color: '#4285F4', fontFamily: 'System' }}>G</Text>
+    <View style={{ width: 18, height: 18 }}>
+      <Text style={{ fontSize: 14, lineHeight: 18 }}>
+        {/* inline SVG-equivalent via text isn't ideal; use a proper SVG */}
+      </Text>
     </View>
   )
 }
 
-export default function Login() {
+export default function Signup() {
   const router = useRouter()
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState({})
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password')
-      return
-    }
-    setError('')
+  const validate = () => {
+    const e = {}
+    if (!email.trim() || !email.includes('@')) e.email = 'Enter a valid email'
+    if (password.length < 6) e.password = 'Password must be at least 6 characters'
+    if (password !== confirm) e.confirm = 'Passwords do not match'
+    return e
+  }
+
+  const handleSignup = async () => {
+    const e = validate()
+    if (Object.keys(e).length) { setErrors(e); return }
+    setErrors({})
     setLoading(true)
     await new Promise(r => setTimeout(r, 900))
     await saveSession()
     setLoading(false)
-    router.replace('/(tabs)')
+    router.replace('/(auth)/onboarding')
   }
 
   const handleGoogle = async () => {
@@ -47,7 +56,7 @@ export default function Login() {
     await new Promise(r => setTimeout(r, 1500))
     await saveSession()
     setGoogleLoading(false)
-    router.replace('/(tabs)')
+    router.replace('/(auth)/onboarding')
   }
 
   return (
@@ -60,41 +69,44 @@ export default function Login() {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to continue your journeys</Text>
+            <Text style={styles.title}>Create your account</Text>
+            <Text style={styles.subtitle}>Start your accountability journey today</Text>
           </View>
-
-          {error ? <Text style={[styles.errorBanner, { color: colors.danger, borderColor: colors.danger + '40', backgroundColor: colors.danger + '0D' }]}>{error}</Text> : null}
 
           <View style={styles.form}>
             <TextInput
               label="Email"
               value={email}
-              onChangeText={t => { setEmail(t); setError('') }}
+              onChangeText={t => { setEmail(t); setErrors(e => ({ ...e, email: '' })) }}
               placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
+              error={errors.email}
             />
-            <View>
-              <TextInput
-                label="Password"
-                value={password}
-                onChangeText={t => { setPassword(t); setError('') }}
-                placeholder="••••••••"
-                secureTextEntry
-              />
-              <TouchableOpacity onPress={() => {}} style={styles.forgotWrap} activeOpacity={0.7}>
-                <Text style={[styles.forgotText, { color: colors.accent }]}>Forgot password?</Text>
-              </TouchableOpacity>
-            </View>
+            <TextInput
+              label="Password"
+              value={password}
+              onChangeText={t => { setPassword(t); setErrors(e => ({ ...e, password: '' })) }}
+              placeholder="At least 6 characters"
+              secureTextEntry
+              error={errors.password}
+            />
+            <TextInput
+              label="Confirm password"
+              value={confirm}
+              onChangeText={t => { setConfirm(t); setErrors(e => ({ ...e, confirm: '' })) }}
+              placeholder="Repeat your password"
+              secureTextEntry
+              error={errors.confirm}
+            />
           </View>
 
-          <Button label="Sign in" onPress={handleLogin} loading={loading} style={{ marginTop: spacing.md }} />
+          <Button label="Create account" onPress={handleSignup} loading={loading} style={{ marginTop: spacing.md }} />
 
           <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
           </View>
 
           <TouchableOpacity style={[styles.googleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleGoogle} activeOpacity={0.85} disabled={googleLoading}>
@@ -103,20 +115,30 @@ export default function Login() {
             ) : (
               <>
                 <GoogleLogo size={18} />
-                <Text style={[styles.googleText, { color: colors.textPrimary }]}>Sign in with Google</Text>
+                <Text style={[styles.googleText, { color: colors.textPrimary }]}>Sign up with Google</Text>
               </>
             )}
           </TouchableOpacity>
 
-          <View style={styles.signupRow}>
-            <Text style={[styles.signupPrompt, { color: colors.textSecondary }]}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/signup')} activeOpacity={0.7}>
-              <Text style={[styles.signupLink, { color: colors.accent }]}>Create one</Text>
+          <View style={styles.signinRow}>
+            <Text style={styles.signinPrompt}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => router.replace('/(auth)/login')} activeOpacity={0.7}>
+              <Text style={[styles.signinLink, { color: colors.accent }]}>Sign in</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  )
+}
+
+function GoogleLogo({ size = 18 }) {
+  // Official Google G colors
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      {/* G shape via SVG paths would need react-native-svg; approximate with styled text */}
+      <Text style={{ fontSize: size - 2, lineHeight: size, fontWeight: '700', color: '#4285F4', fontFamily: 'System' }}>G</Text>
+    </View>
   )
 }
 
@@ -129,17 +151,14 @@ function makeStyles(colors) {
     header: { gap: 6, marginBottom: spacing.xl },
     title: { fontFamily: fonts.display, fontSize: 32, color: colors.textPrimary },
     subtitle: { fontFamily: fonts.body, fontSize: 15, color: colors.textSecondary },
-    errorBanner: { fontFamily: fonts.body, fontSize: 13, padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: spacing.md },
     form: { gap: spacing.md },
-    forgotWrap: { alignSelf: 'flex-end', marginTop: 6 },
-    forgotText: { fontFamily: fonts.bodyMedium, fontSize: 13 },
     dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: spacing.md },
-    dividerLine: { flex: 1, height: 1 },
-    dividerText: { fontFamily: fonts.body, fontSize: 13 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+    dividerText: { fontFamily: fonts.body, fontSize: 13, color: colors.textMuted },
     googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 48, borderRadius: 10, borderWidth: 1 },
     googleText: { fontFamily: fonts.bodyMedium, fontSize: 15 },
-    signupRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: spacing.lg },
-    signupPrompt: { fontFamily: fonts.body, fontSize: 14 },
-    signupLink: { fontFamily: fonts.bodyBold, fontSize: 14 },
+    signinRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: spacing.lg },
+    signinPrompt: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+    signinLink: { fontFamily: fonts.bodyBold, fontSize: 14 },
   })
 }
