@@ -11,13 +11,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.vouch.app"
+      "bundleIdentifier": "app.vouch.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0A0F1E"
       },
-      "package": "com.vouch.app"
+      "package": "app.vouch.mobile"
     },
     "plugins": [
       "expo-router",
@@ -25,7 +25,8 @@
       [
         "expo-image-picker",
         { "photosPermission": "Allow Vouch to access your photos for check-in proof." }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

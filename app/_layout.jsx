@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { View } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { getItem, setItem, removeItem } from '../utils/storage'
+import { logger } from '../utils/logger'
+import { apiRefreshSession, apiGetMe } from '../utils/api'
 import {
   requestNotificationPermissions,
   scheduleDailyReminder,
@@ -20,33 +22,85 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
-import { UserProvider } from '../context/UserContext'
+import { UserProvider, useUser } from '../context/UserContext'
 
 SplashScreen.preventAutoHideAsync()
 
-export async function saveSession() {
-  const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000
-  await setItem('vouch_session', JSON.stringify({ token: 'dummy-token', expiry }))
+// Save real token + refresh token from backend response.
+// expires_in (seconds from now) is preferred over expires_at to avoid server clock skew.
+// Falls back to expires_at (Unix seconds) → 1 hour if both are absent.
+export async function saveSession({ token, refresh_token, expires_at, expires_in } = {}) {
+  let expiry
+  if (expires_in != null) {
+    expiry = Date.now() + Number(expires_in) * 1000
+  } else if (expires_at != null) {
+    const ms = Number(expires_at) * 1000
+    // Sanity-check: if the result is in the past or less than 60s away, assume the
+    // Supabase project has a short JWT TTL — add 1 hour as a fallback buffer.
+    expiry = ms > Date.now() + 60_000 ? ms : Date.now() + 60 * 60 * 1000
+  } else {
+    expiry = Date.now() + 60 * 60 * 1000
+  }
+  await setItem('vouch_session', JSON.stringify({ token, refresh_token, expiry }))
+  logger.info('[SESSION]', 'Session saved', { expiresAt: new Date(expiry).toISOString() })
 }
 
 export async function clearSession() {
   await removeItem('vouch_session')
+  logger.info('[SESSION]', 'Session cleared')
 }
 
 async function hasValidSession() {
   try {
     const raw = await getItem('vouch_session')
-    if (!raw) return false
-    const { expiry } = JSON.parse(raw)
-    return Date.now() < expiry
-  } catch (_) {
+    if (!raw) {
+      logger.info('[SESSION]', 'No session found')
+      return false
+    }
+    const { token, refresh_token, expiry } = JSON.parse(raw)
+    if (!token) {
+      logger.info('[SESSION]', 'Session missing token')
+      return false
+    }
+
+    // Token still valid
+    if (Date.now() < expiry) {
+      logger.info('[SESSION]', 'Session valid', { expiresAt: new Date(expiry).toISOString() })
+      return true
+    }
+
+    // Token expired — try to refresh silently
+    logger.info('[SESSION]', 'Token expired — attempting silent refresh')
+    if (!refresh_token) return false
+
+    const res = await apiRefreshSession({ refresh_token })
+    await saveSession({
+      token: res.data.session.access_token,
+      refresh_token: res.data.session.refresh_token,
+      expires_at: res.data.session.expires_at,
+    })
+    logger.info('[SESSION]', 'Silent refresh succeeded')
+    return true
+  } catch (err) {
+    logger.warn('[SESSION]', `Session check failed — sending to auth: ${err.message}`)
     return false
   }
 }
 
 function RootStack({ sessionChecked, hasSession }) {
   const { colors, scheme } = useTheme()
+  const { updateUser } = useUser()
   const router = useRouter()
+
+  // Hydrate user context from the backend whenever a valid session is confirmed.
+  // This covers app restarts where the token is valid but UserContext is empty.
+  useEffect(() => {
+    if (!hasSession) return
+    apiGetMe()
+      .then(res => { if (res?.data?.user) updateUser(res.data.user) })
+      .catch(err => logger.warn('[PROFILE]', `Failed to hydrate profile: ${err.message}`))
+  }, [hasSession])
+
   useEffect(() => {
     if (!sessionChecked) return
     if (hasSession) {
@@ -63,18 +117,19 @@ function RootStack({ sessionChecked, hasSession }) {
     }
   }, [sessionChecked, hasSession])
 
-  // Notification tap → deep-link (active when using a native dev build, no-op in Expo Go)
+  // Notification tap → deep-link
+  // Only available in a native dev build, not Expo Go (SDK 53 removed push from Expo Go)
+  // Uncomment when running `npx expo run:android` / `npx expo run:ios`
+  /*
   useEffect(() => {
-    let sub
-    try {
-      const N = require('expo-notifications')
-      sub = N.addNotificationResponseReceivedListener(response => {
-        const data = response.notification.request.content.data
-        if (data?.route) router.push({ pathname: data.route, params: data.params ?? {} })
-      })
-    } catch (_) {}
-    return () => { try { sub?.remove() } catch (_) {} }
+    const N = require('expo-notifications')
+    const sub = N.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data
+      if (data?.route) router.push({ pathname: data.route, params: data.params ?? {} })
+    })
+    return () => sub.remove()
   }, [])
+  */
 
   return (
     <>
@@ -124,12 +179,12 @@ export default function RootLayout() {
   if (!fontsLoaded || !sessionChecked) return null
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <ThemeProvider>
         <UserProvider>
           <RootStack sessionChecked={sessionChecked} hasSession={hasSession} />
         </UserProvider>
       </ThemeProvider>
-    </GestureHandlerRootView>
+    </View>
   )
 }

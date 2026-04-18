@@ -19,9 +19,8 @@ export function ThemeProvider({ children }) {
   const [systemScheme, setSystemScheme] = useState(Appearance.getColorScheme() ?? 'dark')
 
   useEffect(() => {
-    getItem(STORAGE_KEY).then(val => {
-      if (val === 'light' || val === 'system') setPreferenceState(val)
-    })
+    // Force dark mode — clear any stored light preference
+    setItem(STORAGE_KEY, 'dark')
   }, [])
 
   // Listen for OS theme changes — applies when preference === 'system'

@@ -1,22 +1,13 @@
-import { useState, useMemo } from 'react'
-import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Animated, PanResponder, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { PanGestureHandler } from 'react-native-gesture-handler'
-import Animated, {
-  useAnimatedGestureHandler,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-  interpolate,
-  Extrapolate,
-} from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fonts } from '../constants/fonts'
 import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
-import { NOTIFICATIONS } from '../data/dummy'
+import { apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead } from '../utils/api'
+import { setUnreadCount, clearUnread, decrementUnread } from '../utils/notificationStore'
 
 const TYPE_ICONS = {
   checkin: 'checkmark-outline',
@@ -25,6 +16,17 @@ const TYPE_ICONS = {
   system: 'information-circle-outline',
   streak: 'flame',
   badge: 'ribbon-outline',
+  welcome: 'hand-left-outline',
+  journey_started: 'rocket-outline',
+  member_joined: 'person-add-outline',
+  checkin_reminder: 'alarm-outline',
+  partner_checkin: 'checkmark-circle-outline',
+  streak_milestone: 'flame',
+  streak_broken: 'alert-circle-outline',
+  milestone_unlock: 'diamond-outline',
+  journey_complete: 'trophy-outline',
+  member_left: 'exit-outline',
+  auto_abandoned: 'close-circle-outline',
 }
 
 const SWIPE_THRESHOLD = 80
@@ -32,92 +34,61 @@ const SWIPE_THRESHOLD = 80
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-function filterStale(notifications) {
-  const cutoff = Date.now() - 8 * 60 * 60 * 1000
-  return notifications.filter(n => !n.read || new Date(n.created_at).getTime() > cutoff)
-}
-
 function NotificationRow({ item, onDismiss, onNavigate, colors, styles }) {
-  const translateX = useSharedValue(0)
+  const translateX = useRef(new Animated.Value(0)).current
 
-  const gestureHandler = useAnimatedGestureHandler({
-    onActive: (event) => {
-      translateX.value = event.translationX
-    },
-    onEnd: (event) => {
-      if (event.translationX > SWIPE_THRESHOLD) {
-        // Right swipe → dismiss
-        translateX.value = withSpring(600, { damping: 20 }, () => {
-          runOnJS(onDismiss)(item.id)
-        })
-      } else if (event.translationX < -SWIPE_THRESHOLD) {
-        // Left swipe → open
-        translateX.value = withSpring(0, { damping: 20 })
-        runOnJS(onNavigate)(item)
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+    onPanResponderMove: (_, g) => { translateX.setValue(g.dx) },
+    onPanResponderRelease: (_, g) => {
+      if (g.dx > SWIPE_THRESHOLD) {
+        Animated.timing(translateX, { toValue: 600, duration: 200, useNativeDriver: true }).start(() => onDismiss(item.id))
+      } else if (g.dx < -SWIPE_THRESHOLD) {
+        onNavigate(item)
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start()
       } else {
-        translateX.value = withSpring(0, { damping: 20 })
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start()
       }
     },
-  })
+  })).current
 
-  const rowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    borderRadius: 16,
-  }))
-
-  // Red peek on right swipe
-  const dismissBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolate.CLAMP),
-  }))
-
-  // Gold peek on left swipe
-  const openBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolate.CLAMP),
-  }))
+  const dismissOpacity = translateX.interpolate({ inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp' })
+  const openOpacity = translateX.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0], outputRange: [1, 0], extrapolate: 'clamp' })
 
   return (
-    <View style={{ position: 'relative', marginBottom: 0 }}>
-      {/* Dismiss background (red, left side) */}
-      <Animated.View style={[styles.swipeBgLeft, { backgroundColor: colors.danger }, dismissBgStyle]}>
+    <View style={{ position: 'relative' }}>
+      <Animated.View style={[styles.swipeBgLeft, { backgroundColor: colors.danger, opacity: dismissOpacity }]}>
         <Ionicons name="trash-outline" size={20} color="#fff" />
         <Text style={styles.swipeBgText}>Clear</Text>
       </Animated.View>
-
-      {/* Open background (gold, right side) */}
-      <Animated.View style={[styles.swipeBgRight, { backgroundColor: colors.accent }, openBgStyle]}>
+      <Animated.View style={[styles.swipeBgRight, { backgroundColor: colors.accent, opacity: openOpacity }]}>
         <Ionicons name="arrow-forward-outline" size={20} color={colors.bg} />
         <Text style={[styles.swipeBgText, { color: colors.bg }]}>Open</Text>
       </Animated.View>
-
-      <PanGestureHandler onGestureEvent={gestureHandler} activeOffsetX={[-10, 10]}>
-        <Animated.View style={rowStyle}>
-          <TouchableOpacity
-            style={[styles.row, !item.read && styles.rowUnread, { backgroundColor: colors.bg }]}
-            onPress={() => onNavigate(item)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.iconBox, !item.read && styles.iconBoxUnread]}>
-              <Ionicons
-                name={TYPE_ICONS[item.type] ?? 'ellipse-outline'}
-                size={16}
-                color={!item.read ? colors.accent : colors.textMuted}
-              />
-            </View>
-            <View style={styles.rowBody}>
-              <Text style={[styles.rowTitle, !item.read && styles.rowTitleUnread]}>{item.title}</Text>
-              {item.body ? <Text style={styles.rowBody2} numberOfLines={2}>{item.body}</Text> : null}
-              <Text style={styles.rowTime}>{timeAgo(item.created_at)}</Text>
-            </View>
-            {!item.read && <View style={styles.dot} />}
-          </TouchableOpacity>
-        </Animated.View>
-      </PanGestureHandler>
+      <Animated.View style={{ transform: [{ translateX }], borderRadius: 16 }} {...panResponder.panHandlers}>
+        <TouchableOpacity
+          style={[styles.row, !item.read && styles.rowUnread, { backgroundColor: colors.bg }]}
+          onPress={() => onNavigate(item)}
+          activeOpacity={0.75}
+        >
+          <View style={[styles.iconBox, !item.read && styles.iconBoxUnread]}>
+            <Ionicons name={TYPE_ICONS[item.type] ?? 'ellipse-outline'} size={16} color={!item.read ? colors.accent : colors.textMuted} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={[styles.rowTitle, !item.read && styles.rowTitleUnread]}>{item.title}</Text>
+            {item.body ? <Text style={styles.rowBody} numberOfLines={2}>{item.body}</Text> : null}
+            <Text style={styles.rowTime}>{timeAgo(item.created_at)}</Text>
+          </View>
+          {!item.read && <View style={styles.dot} />}
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   )
 }
@@ -126,15 +97,68 @@ export default function Notifications() {
   const router = useRouter()
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const [items, setItems] = useState(() => filterStale(NOTIFICATIONS))
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const markAllRead = () => setItems(prev => prev.map(n => ({ ...n, read: true })))
-  const markRead = (id) => setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-  const dismiss = (id) => setItems(prev => prev.filter(n => n.id !== id))
+  const load = useCallback(async () => {
+    try {
+      const res = await apiGetNotifications()
+      setItems(res.notifications || [])
+      setUnreadCount(res.unread_count ?? 0)
+    } catch (_) {}
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const markAllRead = async () => {
+    setItems(prev => prev.map(n => ({ ...n, read: true })))
+    clearUnread()
+    try { await apiMarkAllNotificationsRead() } catch (_) {}
+  }
+
+  const markRead = (id) => {
+    setItems(prev => {
+      const n = prev.find(x => x.id === id)
+      if (n && !n.read) decrementUnread()
+      return prev.map(x => x.id === id ? { ...x, read: true } : x)
+    })
+    apiMarkNotificationRead(id).catch(() => {})
+  }
+
+  const dismiss = (id) => {
+    setItems(prev => {
+      const n = prev.find(x => x.id === id)
+      if (n && !n.read) decrementUnread()
+      return prev.filter(x => x.id !== id)
+    })
+  }
 
   const navigate = (item) => {
     markRead(item.id)
-    if (item.route) router.push({ pathname: item.route, params: item.params ?? {} })
+    const data = item.data || {}
+    const route = data.route || item.route
+    if (!route) return
+
+    switch (route) {
+      case 'journey':
+        if (data.journey_id) router.push(`/journey/${data.journey_id}`)
+        break
+      case 'milestone':
+        if (data.milestone_id) router.push(`/milestone/${data.milestone_id}`)
+        break
+      case 'discover':
+        router.replace('/(tabs)/discover')
+        break
+      case 'profile':
+        router.replace('/(tabs)/profile')
+        break
+      case 'journeys':
+        router.replace('/(tabs)/journeys')
+        break
+      default:
+        if (item.route) router.push({ pathname: item.route, params: item.params ?? {} })
+    }
   }
 
   const unreadCount = items.filter(n => !n.read).length
@@ -149,13 +173,17 @@ export default function Notifications() {
         <View style={styles.headerActions}>
           {unreadCount > 0 && (
             <TouchableOpacity onPress={markAllRead} activeOpacity={0.7}>
-              <Text style={[styles.headerAction, { color: colors.textSecondary }]}>Mark read</Text>
+              <Text style={[styles.headerAction, { color: colors.textSecondary }]}>Mark all read</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="notifications-off-outline" size={40} color={colors.textMuted} />
           <Text style={styles.emptyText}>Nothing here yet.</Text>
@@ -163,18 +191,12 @@ export default function Notifications() {
       ) : (
         <FlatList
           data={items}
-          keyExtractor={n => n.id}
+          keyExtractor={n => String(n.id)}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           renderItem={({ item }) => (
-            <NotificationRow
-              item={item}
-              onDismiss={dismiss}
-              onNavigate={navigate}
-              colors={colors}
-              styles={styles}
-            />
+            <NotificationRow item={item} onDismiss={dismiss} onNavigate={navigate} colors={colors} styles={styles} />
           )}
         />
       )}
@@ -195,10 +217,10 @@ function makeStyles(colors) {
     rowUnread: { backgroundColor: colors.surface },
     iconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
     iconBoxUnread: { backgroundColor: 'rgba(232,168,56,0.12)' },
-    rowBody: { flex: 1, gap: 3 },
+    rowContent: { flex: 1, gap: 3 },
     rowTitle: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
     rowTitleUnread: { color: colors.textPrimary },
-    rowBody2: { fontFamily: fonts.body, fontSize: 13, color: colors.textMuted, lineHeight: 18 },
+    rowBody: { fontFamily: fonts.body, fontSize: 13, color: colors.textMuted, lineHeight: 18 },
     rowTime: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: 6 },
     sep: { height: 1, backgroundColor: colors.border },

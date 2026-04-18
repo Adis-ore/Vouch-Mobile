@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,6 +7,7 @@ import { fonts } from '../constants/fonts'
 import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 import { useUser } from '../context/UserContext'
+import { apiUpdateMe } from '../utils/api'
 import Avatar from '../components/shared/Avatar'
 import Button from '../components/shared/Button'
 
@@ -26,11 +27,26 @@ export default function EditProfile() {
   const save = async () => {
     if (!fullName.trim()) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 800))
-    updateUser({ full_name: fullName.trim(), username: username.trim(), bio: bio.trim(), region: region.trim() })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => router.back(), 1000)
+
+    const updates = {}
+    if (fullName.trim() !== (user?.full_name || '')) updates.full_name = fullName.trim()
+    if (bio.trim() !== (user?.bio || '')) updates.bio = bio.trim() || null
+    if (region.trim() !== (user?.region || '')) updates.region = region.trim()
+
+    // Optimistic
+    const prev = { full_name: user?.full_name, bio: user?.bio, region: user?.region }
+    updateUser({ full_name: fullName.trim(), bio: bio.trim() || null, region: region.trim() })
+
+    try {
+      const res = await apiUpdateMe(Object.keys(updates).length ? updates : { full_name: fullName.trim() })
+      if (res?.data?.user) updateUser(res.data.user)
+      setSaved(true)
+      setTimeout(() => router.back(), 800)
+    } catch (err) {
+      updateUser(prev)
+      Alert.alert('Update failed', err.message)
+      setSaving(false)
+    }
   }
 
   return (
@@ -49,7 +65,7 @@ export default function EditProfile() {
             const result = await (await import('expo-image-picker')).launchImageLibraryAsync({ allowsEditing: false, quality: 0.7 })
             if (!result.canceled) updateUser({ avatar_url: result.assets[0].uri })
           }} activeOpacity={0.8}>
-            <Avatar name={fullName || user?.full_name || 'You'} uri={user?.avatar_url} size={80} />
+            <Avatar name={fullName || user?.full_name || 'You'} uri={user?.avatar_url} avatarSeed={user?.avatar_seed} avatarBg={user?.avatar_bg} size={80} />
             <View style={styles.avatarEdit}>
               <Ionicons name="camera-outline" size={14} color={colors.bg} />
             </View>

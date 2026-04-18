@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, TouchableOpacity, Animated, Share, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../context/ThemeContext'
 import { fonts } from '../../constants/fonts'
@@ -48,6 +49,14 @@ export default function JourneyCard({ journey, index = 0, onJoin }) {
         activeOpacity={0.88}
       >
         <View style={[styles.cover, { backgroundColor: catColor + '22' }]}>
+          {journey.cover_image_url ? (
+            <Image
+              source={{ uri: journey.cover_image_url }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ) : null}
           <View style={styles.coverBadges}>
             <View style={[styles.catBadge, { backgroundColor: catColor + '22', borderColor: catColor + '44' }]}>
               <Text style={[styles.catText, { color: catColor }]}>{journey.category}</Text>
@@ -85,6 +94,23 @@ export default function JourneyCard({ journey, index = 0, onJoin }) {
             <Text style={[styles.metaDot, { color: colors.textMuted }]}>·</Text>
             <Text style={[styles.meta, { color: colors.textSecondary }]}>{journey.current_participants}/{journey.max_participants} members</Text>
           </View>
+
+          {journey.join_window && (
+            <View style={[
+              styles.windowChip,
+              journey.join_window.state === 'waiting' && { backgroundColor: '#E8A83818', borderColor: '#E8A83844' },
+              journey.join_window.state === 'open'    && { backgroundColor: '#3ECFAA18', borderColor: '#3ECFAA44' },
+              journey.join_window.state === 'closed'  && { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            ]}>
+              <Text style={[
+                styles.windowChipText,
+                journey.join_window.state === 'waiting' && { color: '#E8A838' },
+                journey.join_window.state === 'open'    && { color: '#3ECFAA' },
+                journey.join_window.state === 'closed'  && { color: colors.textMuted },
+              ]}>{journey.join_window.text}</Text>
+            </View>
+          )}
+
           <View style={styles.footer}>
             <Text style={[styles.spots, { color: colors.textMuted }]}>{spotsLeft > 0 ? `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : 'Full'}</Text>
             {spotsLeft > 0 && onJoin && (

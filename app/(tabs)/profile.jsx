@@ -1,14 +1,15 @@
-import { useState, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, FlatList, Modal, StyleSheet } from 'react-native'
+import { useState, useMemo, useCallback } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, FlatList, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
 import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
-import { BADGES, MY_PAST_JOURNEYS } from '../../data/dummy'
+import { apiUpdateMe, apiGetMyJourneys } from '../../utils/api'
+import { BADGES } from '../../data/dummy'
 import Avatar from '../../components/shared/Avatar'
 import ShareCardButton from '../../components/shared/ShareCard'
 
@@ -19,17 +20,38 @@ export default function Profile() {
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [tab, setTab] = useState('Badges')
   const [selectedBadge, setSelectedBadge] = useState(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [pastJourneys, setPastJourneys] = useState([])
 
-  const STATUS_COLORS = { completed: colors.success, abandoned: colors.danger }
+  useFocusEffect(useCallback(() => {
+    apiGetMyJourneys().then(res => setPastJourneys(res.data?.past || [])).catch(() => {})
+  }, []))
+
+  const OUTCOME_COLORS = { completed: colors.success, abandoned: colors.danger, auto_removed: colors.danger, left: colors.textMuted }
+  const OUTCOME_LABELS = { completed: 'Completed', abandoned: 'Abandoned', auto_removed: 'Removed', left: 'Left' }
 
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.7,
     })
-    if (!result.canceled) {
-      updateUser({ avatar_url: result.assets[0].uri })
+    if (result.canceled) return
+
+    const uri = result.assets[0].uri
+
+    // Update locally immediately so UI feels instant
+    updateUser({ avatar_url: uri, avatar_seed: null, avatar_bg: null })
+
+    // Persist to backend — clear the seed so the photo wins permanently
+    setUploadingAvatar(true)
+    try {
+      await apiUpdateMe({ avatar_url: uri, avatar_seed: null, avatar_bg: null })
+    } catch (_) {
+      // Non-blocking — local state already updated
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -46,15 +68,28 @@ export default function Profile() {
         </View>
 
         <View style={styles.identity}>
-          <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrap}>
-            <Avatar name={user?.full_name ?? 'You'} uri={user?.avatar_url} size={72} />
-            <View style={[styles.avatarEditBadge, { backgroundColor: colors.accent, borderColor: colors.bg }]}>
-              <Ionicons name="camera-outline" size={11} color={colors.bg} />
-            </View>
+          <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrap} disabled={uploadingAvatar}>
+            <Avatar
+              name={user?.full_name ?? 'You'}
+              uri={user?.avatar_url}
+              avatarSeed={user?.avatar_seed}
+              avatarBg={user?.avatar_bg}
+              size={72}
+            />
+            {uploadingAvatar
+              ? <View style={[styles.avatarEditBadge, { backgroundColor: colors.surfaceAlt, borderColor: colors.bg }]}>
+                  <ActivityIndicator size={10} color={colors.accent} />
+                </View>
+              : <View style={[styles.avatarEditBadge, { backgroundColor: colors.accent, borderColor: colors.bg }]}>
+                  <Ionicons name="camera-outline" size={11} color={colors.bg} />
+                </View>
+            }
           </TouchableOpacity>
           <View style={styles.identityText}>
             <Text style={styles.name}>{user?.full_name ?? 'Your Name'}</Text>
-            <Text style={styles.handle}>@{user?.username ?? 'username'}</Text>
+            {user?.username || user?.email
+              ? <Text style={styles.handle}>@{user?.username ?? user.email.split('@')[0]}</Text>
+              : null}
             {user?.location ? <Text style={styles.location}>{user.location}</Text> : null}
           </View>
         </View>
@@ -140,19 +175,29 @@ export default function Profile() {
 
         {tab === 'History' && (
           <View style={styles.tabContent}>
-            {MY_PAST_JOURNEYS.length > 0 ? MY_PAST_JOURNEYS.map(j => (
-              <View key={j.id} style={styles.historyCard}>
-                <View style={styles.historyTop}>
-                  <Text style={styles.historyTitle}>{j.title}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[j.status] + '18' }]}>
-                    <Text style={[styles.statusText, { color: STATUS_COLORS[j.status] }]}>
-                      {j.status.charAt(0).toUpperCase() + j.status.slice(1)}
-                    </Text>
+            {pastJourneys.length > 0 ? pastJourneys.map(j => {
+              const outcomeColor = OUTCOME_COLORS[j.status] || colors.textMuted
+              const outcomeLabel = OUTCOME_LABELS[j.status] || j.status
+              const checkinPct = j.duration_days > 0 ? Math.min(100, Math.round(((j.total_checkins || 0) / j.duration_days) * 100)) : 0
+              const endedDate = j.ended_at ? new Date(j.ended_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+              return (
+                <View key={j.history_id || j.id} style={[styles.historyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View style={styles.historyTop}>
+                    <Text style={[styles.historyTitle, { color: colors.textPrimary }]} numberOfLines={1}>{j.title}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: outcomeColor + '18' }]}>
+                      <Text style={[styles.statusText, { color: outcomeColor }]}>{outcomeLabel}</Text>
+                    </View>
                   </View>
+                  <Text style={[styles.historyMeta, { color: colors.textMuted }]}>
+                    {j.category} · {j.duration_days}d · {checkinPct}% completed
+                    {j.my_role === 'creator' ? ' · Creator' : ''}
+                  </Text>
+                  {endedDate && (
+                    <Text style={[styles.historyMeta, { color: colors.textMuted, marginTop: 2 }]}>{endedDate}</Text>
+                  )}
                 </View>
-                <Text style={styles.historyMeta}>{j.category} · {j.duration_days} days</Text>
-              </View>
-            )) : <Text style={styles.emptyText}>No past journeys yet.</Text>}
+              )
+            }) : <Text style={[styles.emptyText, { color: colors.textMuted }]}>No past journeys yet.</Text>}
           </View>
         )}
 

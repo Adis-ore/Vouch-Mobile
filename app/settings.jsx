@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, Switch, Modal, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, Switch, Modal, TextInput, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -8,6 +8,7 @@ import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 import { useUser } from '../context/UserContext'
 import { clearSession } from './_layout'
+import { apiDeleteAccount, apiSignout } from '../utils/api'
 import PlansModal, { PLANS } from '../components/shared/PlansModal'
 import {
   requestNotificationPermissions,
@@ -18,7 +19,7 @@ import {
 export default function Settings() {
   const router = useRouter()
   const { colors, preference, setPreference } = useTheme()
-  const { user, updateUser } = useUser()
+  const { user, updateUser, setUser } = useUser()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [notifCheckins, setNotifCheckins] = useState(user?.notification_checkins ?? true)
@@ -56,28 +57,42 @@ export default function Settings() {
 
   const [plansVisible, setPlansVisible] = useState(false)
   const [deleteModalVisible, setDeleteModalVisible] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [deleteToast, setDeleteToast] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  const CONFIRM_WORD = 'DELETE'
+  const deleteConfirmed = deleteConfirmText.trim() === CONFIRM_WORD
 
   const handleStreakToggle = (val) => {
     setStrictStreak(val)
     updateUser({ streak_mode: val ? 'strict' : 'relaxed' })
   }
 
+  const openDeleteModal = () => {
+    setDeleteConfirmText('')
+    setDeleteError('')
+    setDeleteModalVisible(true)
+  }
+
   const handleDeleteAccount = async () => {
+    if (!deleteConfirmed) return
     setDeleteLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    setDeleteLoading(false)
-    setDeleteModalVisible(false)
-    setDeleteToast(true)
-    setTimeout(async () => {
-      setDeleteToast(false)
+    setDeleteError('')
+    try {
+      await apiDeleteAccount()
+      setUser(null)
       await clearSession()
       router.replace('/(auth)/welcome')
-    }, 2000)
+    } catch (err) {
+      setDeleteError(err.message || 'Something went wrong. Please try again.')
+      setDeleteLoading(false)
+    }
   }
 
   const handleLogout = async () => {
+    try { await apiSignout() } catch (_) {} // invalidate server session
+    setUser(null)
     await clearSession()
     router.replace('/(auth)/welcome')
   }
@@ -180,7 +195,7 @@ export default function Settings() {
         </TouchableOpacity>
 
         {/* Delete account */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => setDeleteModalVisible(true)} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.deleteBtn} onPress={openDeleteModal} activeOpacity={0.7}>
           <Text style={styles.deleteBtnText}>Delete account</Text>
         </TouchableOpacity>
 
@@ -190,38 +205,57 @@ export default function Settings() {
       <PlansModal visible={plansVisible} onClose={() => setPlansVisible(false)} />
 
       {/* Delete confirmation modal */}
-      <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => setDeleteModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name="warning-outline" size={32} color={colors.danger} style={{ alignSelf: 'center' }} />
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Delete your account?</Text>
-            <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-              This will permanently delete your account, all journeys, and any held deposits will be forfeited. This cannot be undone.
-            </Text>
-            <TouchableOpacity
-              style={[styles.modalDangerBtn, { backgroundColor: colors.danger }]}
-              onPress={handleDeleteAccount}
-              disabled={deleteLoading}
-              activeOpacity={0.85}
-            >
-              {deleteLoading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.modalDangerBtnText}>Yes, delete my account</Text>
-              }
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setDeleteModalVisible(false)} style={{ paddingVertical: 8 }}>
-              <Text style={[styles.modalCancelText, { color: colors.textMuted }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => !deleteLoading && setDeleteModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="warning-outline" size={32} color={colors.danger} style={{ alignSelf: 'center' }} />
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Delete your account?</Text>
+              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                This will permanently delete your account, all journeys, and any held deposits will be forfeited.{'\n\n'}This cannot be undone.
+              </Text>
 
-      {/* Toast */}
-      {deleteToast && (
-        <View style={[styles.toast, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.toastText, { color: colors.textPrimary }]}>Account deletion requested</Text>
-        </View>
-      )}
+              <View style={styles.confirmBlock}>
+                <Text style={[styles.confirmLabel, { color: colors.textSecondary }]}>
+                  Type <Text style={{ color: colors.danger, fontFamily: fonts.bodyBold }}>DELETE</Text> to confirm
+                </Text>
+                <TextInput
+                  style={[
+                    styles.confirmInput,
+                    { backgroundColor: colors.surfaceAlt, borderColor: deleteConfirmed ? colors.danger : colors.border, color: colors.textPrimary },
+                  ]}
+                  value={deleteConfirmText}
+                  onChangeText={t => { setDeleteConfirmText(t); setDeleteError('') }}
+                  placeholder="Type DELETE"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  editable={!deleteLoading}
+                />
+              </View>
+
+              {deleteError ? (
+                <Text style={[styles.deleteErrorText, { color: colors.danger }]}>{deleteError}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.modalDangerBtn, { backgroundColor: colors.danger, opacity: deleteConfirmed && !deleteLoading ? 1 : 0.35 }]}
+                onPress={handleDeleteAccount}
+                disabled={!deleteConfirmed || deleteLoading}
+                activeOpacity={0.85}
+              >
+                {deleteLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.modalDangerBtnText}>Delete my account forever</Text>
+                }
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setDeleteModalVisible(false)} style={{ paddingVertical: 8 }} disabled={deleteLoading}>
+                <Text style={[styles.modalCancelText, { color: colors.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -281,7 +315,9 @@ function makeStyles(colors) {
     modalDangerBtn: { borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center' },
     modalDangerBtnText: { fontFamily: fonts.bodyBold, fontSize: 15, color: '#fff' },
     modalCancelText: { fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
-    toast: { position: 'absolute', bottom: 40, left: spacing.lg, right: spacing.lg, borderRadius: 12, borderWidth: 1, padding: 14, alignItems: 'center' },
-    toastText: { fontFamily: fonts.bodyMedium, fontSize: 14 },
+    confirmBlock: { gap: 8 },
+    confirmLabel: { fontFamily: fonts.body, fontSize: 13 },
+    confirmInput: { borderWidth: 1.5, borderRadius: 10, height: 48, paddingHorizontal: 14, fontSize: 16, fontFamily: fonts.bodyMedium, letterSpacing: 2 },
+    deleteErrorText: { fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
   })
 }

@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router'
 import { View, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../../context/ThemeContext'
 
 function TabIcon({ focused, children, colors }) {
@@ -48,6 +49,11 @@ function PersonIcon({ color }) {
 
 export default function TabsLayout() {
   const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
+  // insets.bottom is 34 on iPhone 14/modern iPhones (home indicator), 0 on older models
+  const tabBarHeight = 60 + insets.bottom
+  const tabBarPaddingBottom = 8 + insets.bottom
+
   return (
     <Tabs
       screenOptions={{
@@ -56,8 +62,8 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: tabBarHeight,
+          paddingBottom: tabBarPaddingBottom,
           paddingTop: 8,
         },
         tabBarActiveTintColor: colors.accent,

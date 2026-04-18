@@ -5,11 +5,19 @@ import { fonts } from '../../constants/fonts'
 const CELL = 10
 const GAP = 3
 
+// Each cell: { state: 'own' | 'others' | 'missed' | 'future' }
 export default function CheckinHeatmap({ data }) {
   const { colors } = useTheme()
   const ROWS = 7
   const cols = []
   for (let i = 0; i < data.length; i += ROWS) cols.push(data.slice(i, i + ROWS))
+
+  const cellColor = (cell) => {
+    if (cell.state === 'own') return '#E8A838'
+    if (cell.state === 'others') return colors.success
+    if (cell.state === 'missed') return colors.danger + 'CC'
+    return colors.surfaceAlt
+  }
 
   return (
     <View style={styles.container}>
@@ -17,17 +25,14 @@ export default function CheckinHeatmap({ data }) {
         {cols.map((col, ci) => (
           <View key={ci} style={styles.col}>
             {col.map((day, ri) => (
-              <View key={ri} style={[
-                styles.cell,
-                day.count > 1 ? { backgroundColor: colors.success } : day.count > 0 ? { backgroundColor: colors.accent } : { backgroundColor: colors.surfaceAlt },
-              ]} />
+              <View key={ri} style={[styles.cell, { backgroundColor: cellColor(day) }]} />
             ))}
           </View>
         ))}
       </ScrollView>
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#E8A838' }]} />
           <Text style={[styles.legendText, { color: colors.textMuted }]}>You</Text>
         </View>
         <View style={styles.legendItem}>
@@ -35,7 +40,7 @@ export default function CheckinHeatmap({ data }) {
           <Text style={[styles.legendText, { color: colors.textMuted }]}>Others</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.surfaceAlt }]} />
+          <View style={[styles.legendDot, { backgroundColor: colors.danger + 'CC' }]} />
           <Text style={[styles.legendText, { color: colors.textMuted }]}>Missed</Text>
         </View>
       </View>

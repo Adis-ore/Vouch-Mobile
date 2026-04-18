@@ -13,6 +13,7 @@ export const PLANS = [
     price: '₦0',
     period: 'forever',
     journeyLimit: 3,
+    maxParticipants: 20,
     features: [
       'Up to 3 active journeys',
       'Photo & video proof upload',
@@ -31,6 +32,7 @@ export const PLANS = [
     price: '₦1,500',
     period: 'per month',
     journeyLimit: 10,
+    maxParticipants: 50,
     features: [
       'Up to 10 active journeys',
       'Everything in Free',
@@ -50,6 +52,7 @@ export const PLANS = [
     price: '₦3,500',
     period: 'per month',
     journeyLimit: Infinity,
+    maxParticipants: 100,
     features: [
       'Unlimited active journeys',
       'Everything in Pro',
@@ -63,6 +66,10 @@ export const PLANS = [
 
 export function getPlanLimit(plan) {
   return PLANS.find(p => p.id === plan)?.journeyLimit ?? 3
+}
+
+export function getPlanMaxParticipants(plan) {
+  return PLANS.find(p => p.id === plan)?.maxParticipants ?? 20
 }
 
 export default function PlansModal({ visible, onClose, highlightPlan }) {

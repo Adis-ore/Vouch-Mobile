@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Animated, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Animated, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -8,7 +8,10 @@ import * as Haptics from 'expo-haptics'
 import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
 import { useTheme } from '../../context/ThemeContext'
-import { ACTIVE_JOURNEY } from '../../data/dummy'
+import { useUser } from '../../context/UserContext'
+import { apiSubmitCheckin, apiGetJourney, apiUploadCheckinImage } from '../../utils/api'
+import { markCheckedIn } from '../../utils/checkinSignal'
+import { getItem, setItem, removeItem } from '../../utils/storage'
 import Button from '../../components/shared/Button'
 
 const MIN_CHARS = 20
@@ -54,12 +57,41 @@ export default function CheckinScreen() {
   const { journeyId } = useLocalSearchParams()
   const router = useRouter()
   const { colors } = useTheme()
+  const { updateUser, incrementCheckinTotal, updateStreak: updateStreakCtx } = useUser()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const [journeyTitle, setJourneyTitle] = useState('')
   const [note, setNote] = useState('')
   const [nextStep, setNextStep] = useState('')
   const [proofUri, setProofUri] = useState(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    apiGetJourney(journeyId)
+      .then(res => setJourneyTitle(res.journey?.title || ''))
+      .catch(() => {})
+
+    // Restore auto-saved draft
+    getItem(`checkin_draft_${journeyId}`).then(raw => {
+      if (!raw) return
+      try {
+        const saved = JSON.parse(raw)
+        if (saved.note) setNote(saved.note)
+        if (saved.nextStep) setNextStep(saved.nextStep)
+      } catch (_) {}
+    })
+  }, [journeyId])
+
+  // Auto-save draft as user types (debounced 1.5s)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (note || nextStep) {
+        setItem(`checkin_draft_${journeyId}`, JSON.stringify({ note, nextStep }))
+      }
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [note, nextStep, journeyId])
 
   const isValid = note.trim().length >= MIN_CHARS
   const charColor = note.length >= MIN_CHARS ? colors.success : note.length > MIN_CHARS * 0.6 ? colors.accent : colors.textMuted
@@ -72,11 +104,40 @@ export default function CheckinScreen() {
   const submit = async () => {
     if (!isValid) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 900))
-    setLoading(false)
-    setSuccess(true)
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    setTimeout(() => router.back(), 1800)
+    setError(null)
+    try {
+      let uploadedUrl = null
+      if (proofUri) {
+        try {
+          uploadedUrl = await apiUploadCheckinImage(proofUri)
+        } catch (uploadErr) {
+          setError(`Photo upload failed: ${uploadErr.message}. Check your internet and try again.`)
+          setLoading(false)
+          return
+        }
+      }
+
+      const res = await apiSubmitCheckin({
+        journey_id: journeyId,
+        note: note.trim(),
+        next_step: nextStep.trim() || null,
+        proof_url: uploadedUrl,
+        proof_type: uploadedUrl ? 'image' : null,
+      })
+
+      markCheckedIn(journeyId)
+      removeItem(`checkin_draft_${journeyId}`)
+      // Optimistic updates — no re-fetch needed
+      incrementCheckinTotal()
+      if (res?.current_streak != null) updateStreakCtx(res.current_streak)
+      setSuccess(true)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      setTimeout(() => router.back(), 1800)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -84,7 +145,7 @@ export default function CheckinScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.journeyName}>{ACTIVE_JOURNEY.title}</Text>
+            {journeyTitle ? <Text style={styles.journeyName}>{journeyTitle}</Text> : null}
             <Text style={styles.dateText}>{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
           </View>
 
@@ -116,6 +177,8 @@ export default function CheckinScreen() {
             <TextInput style={styles.nextStepInput} value={nextStep} onChangeText={setNextStep} placeholder="Tomorrow I will..." placeholderTextColor={colors.textMuted} />
           </View>
 
+          {error ? <Text style={[styles.errorMsg, { color: colors.danger }]}>{error}</Text> : null}
+
           <Button label={success ? 'Submitted!' : 'Submit check-in'} onPress={submit} loading={loading} disabled={!isValid || success} style={{ marginTop: spacing.sm }} />
           {success && <Text style={styles.successMsg}>Check-in submitted. Keep going!</Text>}
         </ScrollView>
@@ -145,6 +208,7 @@ function makeStyles(colors) {
     proofAttached: { fontFamily: fonts.body, fontSize: 12, color: colors.success },
     nextStepSection: { gap: 8 },
     nextStepInput: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 10, height: 46, paddingHorizontal: 14, fontSize: 14, fontFamily: fonts.body, color: colors.textPrimary },
+    errorMsg: { fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
     successMsg: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.success, textAlign: 'center' },
   })
 }
