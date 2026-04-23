@@ -64,7 +64,6 @@ export default function JourneyDetail() {
   const [activeTab, setActiveTab] = useState(0)
   const [chatInput, setChatInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [checkinFilter, setCheckinFilter] = useState('All')
   const [abandonModalVisible, setAbandonModalVisible] = useState(false)
   const [starting, setStarting] = useState(false)
 
@@ -223,11 +222,23 @@ export default function JourneyDetail() {
   const myJoinDate = myMember?.joined_at?.split('T')[0]
   const canVerifyToday = myJoinDate !== today
 
-  const filteredCheckins = checkins.filter(c => {
-    if (checkinFilter === 'Mine') return c.user_id === user?.id
-    if (checkinFilter === 'Unverified') return c.verified_count === 0
-    return true
-  })
+  const myCheckins = checkins.filter(c => c.user_id === user?.id)
+  const otherCheckins = checkins.filter(c => c.user_id !== user?.id)
+
+  const missedDays = (() => {
+    if (!journey.start_date || journey.status !== 'active') return []
+    const today = new Date()
+    const start = new Date(journey.start_date)
+    const checkedInDates = new Set(myCheckins.map(c => c.checkin_date))
+    const missed = []
+    let curr = new Date(start)
+    while (curr < today) {
+      const ds = curr.toISOString().split('T')[0]
+      if (!checkedInDates.has(ds)) missed.push({ id: `missed-${ds}`, date: ds })
+      curr.setDate(curr.getDate() + 1)
+    }
+    return missed.reverse()
+  })()
 
   const heatmapData = buildHeatmap(journey.start_date, journey.duration_days, checkins, user?.id)
 
@@ -340,33 +351,77 @@ export default function JourneyDetail() {
       <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
         <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
           {heatmapData.length > 0 && <CheckinHeatmap data={heatmapData} />}
-          <View style={styles.filterChips}>
-            {['All', 'Mine', 'Unverified'].map(f => (
-              <TouchableOpacity key={f} style={[styles.filterChip, checkinFilter === f && styles.filterChipActive]} onPress={() => setCheckinFilter(f)}>
-                <Text style={[styles.filterChipText, checkinFilter === f && { color: colors.accent }]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {filteredCheckins.length === 0 && (
+
+          {/* You */}
+          {myCheckins.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionHeaderText, { color: colors.textMuted }]}>You</Text>
+                <Text style={[styles.sectionHeaderCount, { color: colors.textMuted }]}>{myCheckins.length}</Text>
+              </View>
+              {myCheckins.map(c => (
+                <View key={c.id}>
+                  <CheckinCard item={c} currentUserId={user?.id} onVerify={handleVerify} onFlag={handleFlag} canVerify={canVerifyToday} />
+                  {c.flag_count >= 3 && (
+                    <View style={[styles.flagWarning, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40' }]}>
+                      <Ionicons name="warning-outline" size={14} color={colors.accent} />
+                      <Text style={[styles.flagWarningText, { color: colors.accent }]}>Flagged by majority</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </>
+          )}
+
+          {/* Others */}
+          {otherCheckins.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionHeaderText, { color: colors.textMuted }]}>Others</Text>
+                <Text style={[styles.sectionHeaderCount, { color: colors.textMuted }]}>{otherCheckins.length}</Text>
+              </View>
+              {otherCheckins.map(c => (
+                <View key={c.id}>
+                  <CheckinCard item={c} currentUserId={user?.id} onVerify={handleVerify} onFlag={handleFlag} canVerify={canVerifyToday} />
+                  {c.flag_count >= 3 && (
+                    <View style={[styles.flagWarning, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40' }]}>
+                      <Ionicons name="warning-outline" size={14} color={colors.accent} />
+                      <Text style={[styles.flagWarningText, { color: colors.accent }]}>Flagged by majority</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </>
+          )}
+
+          {/* Missed */}
+          {missedDays.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionHeaderText, { color: colors.danger }]}>Missed</Text>
+                <Text style={[styles.sectionHeaderCount, { color: colors.danger }]}>{missedDays.length}</Text>
+              </View>
+              {missedDays.map(({ id, date }) => {
+                const d = new Date(date + 'T12:00:00')
+                const label = d.toLocaleDateString('en-GB', { weekday: 'long', month: 'short', day: 'numeric' })
+                return (
+                  <View key={id} style={[styles.missedCard, { backgroundColor: colors.danger + '0D', borderColor: colors.danger + '25' }]}>
+                    <View style={[styles.missedIcon, { backgroundColor: colors.danger + '1A' }]}>
+                      <Ionicons name="close" size={14} color={colors.danger} />
+                    </View>
+                    <View>
+                      <Text style={[styles.missedDate, { color: colors.textPrimary }]}>{label}</Text>
+                      <Text style={[styles.missedLabel, { color: colors.danger }]}>No check-in</Text>
+                    </View>
+                  </View>
+                )
+              })}
+            </>
+          )}
+
+          {myCheckins.length === 0 && otherCheckins.length === 0 && (
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>No check-ins yet.</Text>
           )}
-          {filteredCheckins.map(c => (
-            <View key={c.id}>
-              <CheckinCard
-                item={c}
-                currentUserId={user?.id}
-                onVerify={handleVerify}
-                onFlag={handleFlag}
-                canVerify={canVerifyToday}
-              />
-              {c.flag_count >= 3 && (
-                <View style={[styles.flagWarning, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40' }]}>
-                  <Ionicons name="warning-outline" size={14} color={colors.accent} />
-                  <Text style={[styles.flagWarningText, { color: colors.accent }]}>Flagged by majority</Text>
-                </View>
-              )}
-            </View>
-          ))}
           <View style={{ height: 80 }} />
         </ScrollView>
         {journey.status === 'active' && (
@@ -587,10 +642,13 @@ function makeStyles(colors) {
     inviteBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderStyle: 'dashed' },
     inviteBtnText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.textSecondary },
     emptyText: { fontFamily: fonts.body, fontSize: 14, textAlign: 'center', paddingVertical: spacing.md },
-    filterChips: { flexDirection: 'row', gap: 8, marginBottom: 4 },
-    filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceAlt },
-    filterChipActive: { borderColor: colors.accent },
-    filterChipText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textMuted },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, marginTop: 4 },
+    sectionHeaderText: { fontFamily: fonts.bodyMedium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
+    sectionHeaderCount: { fontFamily: fonts.bodyMedium, fontSize: 11 },
+    missedCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8 },
+    missedIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    missedDate: { fontFamily: fonts.bodyMedium, fontSize: 13 },
+    missedLabel: { fontFamily: fonts.body, fontSize: 11, marginTop: 1 },
     flagWarning: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, marginTop: 4, marginBottom: 8 },
     flagWarningText: { fontFamily: fonts.bodyMedium, fontSize: 12 },
     checkinFab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: colors.accent, borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12, shadowColor: colors.accent, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },

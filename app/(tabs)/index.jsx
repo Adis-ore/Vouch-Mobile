@@ -13,6 +13,7 @@ import { spacing } from '../../constants/spacing'
 import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
 import { apiGetMyJourneys, apiGetDiscoverJourneys } from '../../utils/api'
+import { wasCompleted } from '../../utils/completionSignal'
 import ActiveJourneyCard from '../../components/home/ActiveJourneyCard'
 import Avatar from '../../components/shared/Avatar'
 import WelcomeTutorial from '../../components/WelcomeTutorial'
@@ -143,7 +144,7 @@ export default function Home() {
   const loadJourneys = useCallback(async () => {
     try {
       const res = await apiGetMyJourneys()
-      const active = res.data.active || []
+      const active = (res.data.active || []).filter(j => !wasCompleted(j.id))
       setActiveJourneys(active)
       updateUser({ active_journey_count: active.length })
       if (active.length === 0) loadSuggested()

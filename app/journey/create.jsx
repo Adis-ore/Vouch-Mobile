@@ -134,7 +134,6 @@ export default function CreateJourney() {
 
   // Step 3
   const [milestones, setMilestones] = useState([])
-  const [milestoneError, setMilestoneError] = useState(false)
 
   // Step 4
   const [stakeEnabled, setStakeEnabled] = useState(false)
@@ -178,14 +177,6 @@ export default function CreateJourney() {
   })
 
   const next = () => {
-    if (step === 3) {
-      const filled = getMilestones()
-      if (!filled.some(m => m.title.trim())) {
-        setMilestoneError(true)
-        return
-      }
-      setMilestoneError(false)
-    }
     if (step < TOTAL_STEPS) {
       const nextStep = step + 1
       setStep(nextStep)
@@ -452,20 +443,14 @@ export default function CreateJourney() {
         {step === 3 && (
           <View style={styles.stepContainer}>
             <Text style={styles.prompt}>Break it into {milestoneUnit.toLowerCase()}s</Text>
-            <Text style={styles.stepNote}>Give each {milestoneUnit.toLowerCase()} a title. At least one milestone is required.</Text>
-            {milestoneError && (
-              <View style={[styles.errorBanner, { backgroundColor: colors.danger + '15', borderColor: colors.danger + '40' }]}>
-                <Ionicons name="alert-circle-outline" size={15} color={colors.danger} />
-                <Text style={[styles.errorText, { color: colors.danger }]}>Add at least one milestone before continuing.</Text>
-              </View>
-            )}
+            <Text style={styles.stepNote}>Give each {milestoneUnit.toLowerCase()} a name. All optional — skip any you don't need.</Text>
             {getMilestones().map((m, i) => (
               <View key={i} style={[styles.milestoneSlot, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[styles.weekLabel, { color: colors.accent }]}>{milestoneUnit} {m.week}</Text>
                 <TextInput
                   style={[styles.slotInput, { color: colors.textPrimary, backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
                   value={m.title}
-                  onChangeText={v => { updateMilestone(i, 'title', v); setMilestoneError(false) }}
+                  onChangeText={v => updateMilestone(i, 'title', v)}
                   placeholder="Milestone title (required)"
                   placeholderTextColor={colors.textMuted}
                 />

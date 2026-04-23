@@ -11,6 +11,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
 import { apiSubmitCheckin, apiGetJourney, apiUploadCheckinImage } from '../../utils/api'
 import { markCheckedIn } from '../../utils/checkinSignal'
+import { markCompleted } from '../../utils/completionSignal'
 import { getItem, setItem, removeItem } from '../../utils/storage'
 import Button from '../../components/shared/Button'
 
@@ -65,6 +66,7 @@ export default function CheckinScreen() {
   const [proofUri, setProofUri] = useState(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [journeyCompleted, setJourneyCompleted] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -127,12 +129,16 @@ export default function CheckinScreen() {
 
       markCheckedIn(journeyId)
       removeItem(`checkin_draft_${journeyId}`)
-      // Optimistic updates — no re-fetch needed
       incrementCheckinTotal()
       if (res?.current_streak != null) updateStreakCtx(res.current_streak)
+
+      const isComplete = res?.journey_completed === true
+      if (isComplete) markCompleted(journeyId)
+      setJourneyCompleted(isComplete)
       setSuccess(true)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      setTimeout(() => router.back(), 1800)
+      // Completed journey → go to Past tab; regular check-in → go back
+      setTimeout(() => isComplete ? router.replace('/(tabs)/journeys') : router.back(), isComplete ? 2200 : 1800)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -180,7 +186,7 @@ export default function CheckinScreen() {
           {error ? <Text style={[styles.errorMsg, { color: colors.danger }]}>{error}</Text> : null}
 
           <Button label={success ? 'Submitted!' : 'Submit check-in'} onPress={submit} loading={loading} disabled={!isValid || success} style={{ marginTop: spacing.sm }} />
-          {success && <Text style={styles.successMsg}>Check-in submitted. Keep going!</Text>}
+          {success && <Text style={styles.successMsg}>{journeyCompleted ? 'Journey complete! Check your badges.' : 'Check-in submitted. Keep going!'}</Text>}
         </ScrollView>
       </KeyboardAvoidingView>
       <Confetti visible={success} colors={colors} />

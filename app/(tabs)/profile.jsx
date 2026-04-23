@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, FlatList, Modal, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, FlatList, Modal, StyleSheet, ActivityIndicator, Alert, Platform, ActionSheetIOS } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -9,8 +9,26 @@ import { spacing } from '../../constants/spacing'
 import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
 import { apiUpdateMe, apiGetMyJourneys } from '../../utils/api'
-import { BADGES } from '../../data/dummy'
 import Avatar from '../../components/shared/Avatar'
+
+const BADGE_CATALOG = [
+  { key: 'first_checkin',  name: 'First Step',       icon: 'footsteps-outline',       desc: 'You submitted your first check-in!',                      howToEarn: 'Submit your first check-in on any journey.' },
+  { key: 'proof_5',        name: 'Proof Poster',      icon: 'camera-outline',          desc: 'You attached proof on 5 check-ins.',                      howToEarn: 'Attach proof (photo/note) to 5 check-ins.' },
+  { key: 'proof_20',       name: 'Show Your Work',    icon: 'images-outline',          desc: '20 check-ins with proof. Accountability unlocked.',       howToEarn: 'Submit 20 check-ins with attached proof.' },
+  { key: 'streak_3',       name: 'Getting Started',   icon: 'flash-outline',           desc: 'You hit a 3-day streak!',                                 howToEarn: 'Check in for 3 consecutive days.' },
+  { key: 'streak_7',       name: 'On Fire',           icon: 'flame-outline',           desc: 'You hit a 7-day streak!',                                 howToEarn: 'Check in for 7 consecutive days.' },
+  { key: 'streak_14',      name: 'Two Weeks Strong',  icon: 'trending-up-outline',     desc: '14 days straight. Serious.',                              howToEarn: 'Check in for 14 consecutive days.' },
+  { key: 'streak_30',      name: 'Unstoppable',       icon: 'shield-checkmark-outline',desc: '30-day streak achieved!',                                 howToEarn: 'Check in for 30 consecutive days.' },
+  { key: 'streak_60',      name: 'Elite',             icon: 'diamond-outline',         desc: '60 consecutive days. Legendary.',                         howToEarn: 'Check in for 60 consecutive days.' },
+  { key: 'streak_100',     name: 'Centurion',         icon: 'trophy-outline',          desc: '100 days. You are built different.',                      howToEarn: 'Check in for 100 consecutive days.' },
+  { key: 'first_journey',  name: 'Finisher',          icon: 'checkmark-done-outline',  desc: 'You completed your first journey!',                       howToEarn: 'Complete your first journey.' },
+  { key: 'journeys_3',     name: 'Triple Crown',      icon: 'medal-outline',           desc: 'Three journeys completed.',                               howToEarn: 'Complete 3 journeys.' },
+  { key: 'journeys_5',     name: 'Consistent',        icon: 'star-outline',            desc: 'Five journeys completed.',                                howToEarn: 'Complete 5 journeys.' },
+  { key: 'journeys_10',    name: 'Veteran',           icon: 'ribbon-outline',          desc: 'Ten journeys completed.',                                 howToEarn: 'Complete 10 journeys.' },
+  { key: 'stake_survivor', name: 'Stake Survivor',    icon: 'wallet-outline',          desc: 'Completed a staked journey and got your money back.',     howToEarn: 'Complete a journey that had a stake.' },
+  { key: 'trusted',        name: 'Trusted',           icon: 'person-circle-outline',   desc: 'Your reputation score hit 80+.',                          howToEarn: 'Reach a reputation score of 80.' },
+  { key: 'highly_trusted', name: 'Highly Trusted',    icon: 'shield-outline',          desc: 'Your reputation score hit 95+.',                          howToEarn: 'Reach a reputation score of 95.' },
+]
 import ShareCardButton from '../../components/shared/ShareCard'
 
 export default function Profile() {
@@ -22,15 +40,19 @@ export default function Profile() {
   const [selectedBadge, setSelectedBadge] = useState(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [pastJourneys, setPastJourneys] = useState([])
+  const [activeCount, setActiveCount] = useState(0)
 
   useFocusEffect(useCallback(() => {
-    apiGetMyJourneys().then(res => setPastJourneys(res.data?.past || [])).catch(() => {})
+    apiGetMyJourneys().then(res => {
+      setPastJourneys(res.data?.past || [])
+      setActiveCount((res.data?.active || []).length)
+    }).catch(() => {})
   }, []))
 
   const OUTCOME_COLORS = { completed: colors.success, abandoned: colors.danger, auto_removed: colors.danger, left: colors.textMuted }
   const OUTCOME_LABELS = { completed: 'Completed', abandoned: 'Abandoned', auto_removed: 'Removed', left: 'Left' }
 
-  const pickAvatar = async () => {
+  const uploadAvatarPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -38,20 +60,27 @@ export default function Profile() {
       quality: 0.7,
     })
     if (result.canceled) return
-
     const uri = result.assets[0].uri
-
-    // Update locally immediately so UI feels instant
     updateUser({ avatar_url: uri, avatar_seed: null, avatar_bg: null })
-
-    // Persist to backend — clear the seed so the photo wins permanently
     setUploadingAvatar(true)
     try {
       await apiUpdateMe({ avatar_url: uri, avatar_seed: null, avatar_bg: null })
-    } catch (_) {
-      // Non-blocking — local state already updated
-    } finally {
-      setUploadingAvatar(false)
+    } catch (_) {}
+    finally { setUploadingAvatar(false) }
+  }
+
+  const pickAvatar = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Change avatar (presets)', 'Upload photo', 'Cancel'], cancelButtonIndex: 2 },
+        (i) => { if (i === 0) router.push('/edit-profile'); if (i === 1) uploadAvatarPhoto() }
+      )
+    } else {
+      Alert.alert('Change avatar', '', [
+        { text: 'Choose preset avatar', onPress: () => router.push('/edit-profile') },
+        { text: 'Upload photo', onPress: uploadAvatarPhoto },
+        { text: 'Cancel', style: 'cancel' },
+      ])
     }
   }
 
@@ -95,9 +124,9 @@ export default function Profile() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={styles.statCell}><Text style={styles.statVal}>{user?.total_journeys ?? 0}</Text><Text style={styles.statLabel}>Journeys</Text></View>
+          <View style={styles.statCell}><Text style={styles.statVal}>{activeCount}</Text><Text style={styles.statLabel}>Active</Text></View>
           <View style={styles.statDivider} />
-          <View style={styles.statCell}><Text style={styles.statVal}>{user?.completed_journeys ?? 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
+          <View style={styles.statCell}><Text style={styles.statVal}>{user?.journeys_completed ?? 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
           <View style={styles.statDivider} />
           <View style={styles.statCell}><Text style={[styles.statVal, { color: colors.accent }]}>{user?.current_streak ?? 0}d</Text><Text style={styles.statLabel}>Streak</Text></View>
           <View style={styles.statDivider} />
@@ -128,50 +157,60 @@ export default function Profile() {
           ))}
         </View>
 
-        {tab === 'Badges' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionLabel}>Earned · {BADGES.filter(b => b.earned).length}</Text>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={BADGES.filter(b => b.earned)}
-              keyExtractor={b => b.key}
-              contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
-              snapToInterval={76}
-              decelerationRate="fast"
-              renderItem={({ item: b }) => (
-                <TouchableOpacity style={styles.badgeItem} onPress={() => setSelectedBadge(b)} activeOpacity={0.8}>
-                  <View style={styles.badgeCircle}>
-                    <Ionicons name={b.icon} size={24} color={colors.accent} />
-                  </View>
-                  <Text style={[styles.badgeName, { color: colors.textSecondary }]} numberOfLines={2}>{b.name}</Text>
-                </TouchableOpacity>
-              )}
-            />
+        {tab === 'Badges' && (() => {
+          const earnedMap = {}
+          for (const b of (user?.badges || [])) earnedMap[b.key] = b.earned_at
+          const allBadges = BADGE_CATALOG.map(b => ({ ...b, earned: !!earnedMap[b.key], earnedDate: earnedMap[b.key] || null }))
+          const earnedBadges = allBadges.filter(b => b.earned)
+          const lockedBadges = allBadges.filter(b => !b.earned)
+          return (
+            <View style={styles.tabContent}>
+              <Text style={styles.sectionLabel}>Earned · {earnedBadges.length}</Text>
+              {earnedBadges.length === 0
+                ? <Text style={[styles.emptyText, { color: colors.textMuted }]}>No badges earned yet. Start checking in!</Text>
+                : <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={earnedBadges}
+                    keyExtractor={b => b.key}
+                    contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
+                    snapToInterval={76}
+                    decelerationRate="fast"
+                    renderItem={({ item: b }) => (
+                      <TouchableOpacity style={styles.badgeItem} onPress={() => setSelectedBadge(b)} activeOpacity={0.8}>
+                        <View style={styles.badgeCircle}>
+                          <Ionicons name={b.icon} size={24} color={colors.accent} />
+                        </View>
+                        <Text style={[styles.badgeName, { color: colors.textSecondary }]} numberOfLines={2}>{b.name}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+              }
 
-            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Locked · {BADGES.filter(b => !b.earned).length}</Text>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={BADGES.filter(b => !b.earned)}
-              keyExtractor={b => b.key}
-              contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
-              snapToInterval={76}
-              decelerationRate="fast"
-              renderItem={({ item: b }) => (
-                <TouchableOpacity style={[styles.badgeItem, { opacity: 0.35 }]} onPress={() => setSelectedBadge(b)} activeOpacity={0.8}>
-                  <View style={[styles.badgeCircle, { backgroundColor: colors.surfaceAlt }]}>
-                    <Ionicons name={b.icon} size={24} color={colors.textMuted} />
-                    <View style={styles.lockOverlay}>
-                      <Ionicons name="lock-closed" size={10} color={colors.textMuted} />
+              <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Locked · {lockedBadges.length}</Text>
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={lockedBadges}
+                keyExtractor={b => b.key}
+                contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
+                snapToInterval={76}
+                decelerationRate="fast"
+                renderItem={({ item: b }) => (
+                  <TouchableOpacity style={[styles.badgeItem, { opacity: 0.35 }]} onPress={() => setSelectedBadge(b)} activeOpacity={0.8}>
+                    <View style={[styles.badgeCircle, { backgroundColor: colors.surfaceAlt }]}>
+                      <Ionicons name={b.icon} size={24} color={colors.textMuted} />
+                      <View style={styles.lockOverlay}>
+                        <Ionicons name="lock-closed" size={10} color={colors.textMuted} />
+                      </View>
                     </View>
-                  </View>
-                  <Text style={[styles.badgeName, { color: colors.textMuted }]} numberOfLines={2}>{b.name}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
+                    <Text style={[styles.badgeName, { color: colors.textMuted }]} numberOfLines={2}>{b.name}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          )
+        })()}
 
         {tab === 'History' && (
           <View style={styles.tabContent}>

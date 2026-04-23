@@ -8,16 +8,46 @@ import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 
 const SECTIONS = [
-  { title: 'What we collect', body: 'We collect your name, phone number, and country when you sign up. We collect check-in notes, photos you upload as proof, and messages you send within journey groups. We also collect usage data — which screens you visit and how often — to improve the app.' },
-  { title: 'How we use your data', body: 'Your check-ins and messages are shared with members of your journey only. Your profile (name, reputation score, bio) is visible to all Vouch users. We use your usage data internally to improve features. We do not sell your data to third parties.' },
-  { title: 'Stakes and payments', body: 'Stake deposits are processed via our payment partner (Paystack). We store only the transaction reference — not your card details. If you forfeit your stake, the funds go to Vouch — not to other users. Completed journeys receive their deposit back within 3–5 business days.' },
-  { title: 'Photos and proof', body: 'Photos uploaded as check-in proof are stored securely and visible only to your journey group. You can delete a photo within 1 hour of upload. After 90 days, photos are automatically deleted from our servers.' },
-  { title: 'Data retention', body: 'Your account data is kept for as long as your account is active. If you delete your account, we delete your personal data within 30 days. Check-in records may be kept in anonymised form for platform analytics.' },
-  { title: 'Your rights', body: 'You can request a copy of your data, correct inaccurate information, or delete your account at any time. Contact us at privacy@vouch.app. We will respond within 14 days.' },
-  { title: 'Cookies and tracking', body: 'The Vouch mobile app does not use browser cookies. We use a device identifier to keep you signed in. We may use crash reporting tools (e.g. Sentry) that collect anonymised error data to help us fix bugs.' },
-  { title: 'Children', body: 'Vouch is not intended for users under the age of 16. If we become aware that a user is under 16, we will delete their account and data.' },
-  { title: 'Changes to this policy', body: 'We will notify you in-app if we make significant changes to this privacy policy. Continued use of Vouch after changes are posted means you accept the updated policy.' },
-  { title: 'Contact', body: 'For privacy-related questions, email privacy@vouch.app. For general support, email support@vouch.app.' },
+  {
+    title: '1. What we collect',
+    body: `When you create a Vouch account, we collect:\n• Your name, email address, and profile information\n• Your country and region (used for partner matching)\n• Your check-in notes, proof photos or voice notes you submit\n• Journey data including milestones, streaks, and completion status\n• Device information and push notification tokens\n• Payment information (processed securely by Paystack — we do not store card details)`,
+  },
+  {
+    title: '2. How we use your data',
+    body: `We use your information to:\n• Match you with accountability partners in your region\n• Calculate and display your streak and reputation score\n• Send you push notifications about your journeys and partners\n• Process security deposits and refunds via Paystack\n• Improve the app based on how it is used`,
+  },
+  {
+    title: '3. Security deposits',
+    body: 'When you pay a security deposit, your payment is processed and held by Paystack. Vouch does not store your card details. Deposits are refunded automatically to your original payment method based on your journey completion percentage. Forfeited deposits are retained by Vouch as platform revenue.',
+  },
+  {
+    title: '4. Data sharing',
+    body: 'We do not sell your personal data to third parties. Your check-ins and profile information are visible to members of your active journeys. Your email address is never shared with other users. We use Paystack for payment processing and Supabase for secure data storage.',
+  },
+  {
+    title: '5. Your rights',
+    body: `You have the right to:\n• Access your personal data at any time from your profile\n• Update or correct your information in Settings\n• Delete your account (Settings → Delete Account)\n• Request a copy of your data by contacting us at privacy@vouch.app`,
+  },
+  {
+    title: '6. Data retention',
+    body: 'Your data is retained while your account is active. Journey chat history is cleared 7 days after a journey ends. When you delete your account, your personal data is removed within 30 days. Transaction records are retained for 7 years for financial compliance purposes.',
+  },
+  {
+    title: '7. Cookies',
+    body: 'The Vouch mobile app does not use browser cookies. We use secure local storage on your device to maintain your login session for up to 7 days. This session data is cleared when you log out.',
+  },
+  {
+    title: '8. Children',
+    body: 'Vouch is intended for users aged 13 and above. Users under 18 should have parental consent before using the platform, particularly for features involving security deposits.',
+  },
+  {
+    title: '9. Changes to this policy',
+    body: 'We may update this policy from time to time. We will notify you of significant changes through the app. Continued use of Vouch after changes constitutes acceptance of the updated policy.',
+  },
+  {
+    title: '10. Contact',
+    body: 'For privacy questions or data requests, contact us at:\nprivacy@vouch.app',
+  },
 ]
 
 export default function Privacy() {

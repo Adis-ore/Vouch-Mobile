@@ -8,7 +8,7 @@ import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 import { useUser } from '../context/UserContext'
 import { clearSession } from './_layout'
-import { apiDeleteAccount, apiSignout } from '../utils/api'
+import { apiDeleteAccount, apiSignout, apiUpdateMe } from '../utils/api'
 import PlansModal, { PLANS } from '../components/shared/PlansModal'
 import {
   requestNotificationPermissions,
@@ -64,9 +64,11 @@ export default function Settings() {
   const CONFIRM_WORD = 'DELETE'
   const deleteConfirmed = deleteConfirmText.trim() === CONFIRM_WORD
 
-  const handleStreakToggle = (val) => {
+  const handleStreakToggle = async (val) => {
+    const mode = val ? 'strict' : 'relaxed'
     setStrictStreak(val)
-    updateUser({ streak_mode: val ? 'strict' : 'relaxed' })
+    updateUser({ streak_mode: mode })
+    try { await apiUpdateMe({ streak_mode: mode }) } catch (_) {}
   }
 
   const openDeleteModal = () => {

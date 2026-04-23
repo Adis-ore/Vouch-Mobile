@@ -17,6 +17,7 @@ const TYPE_ICONS = {
   streak: 'flame',
   badge: 'ribbon-outline',
   welcome: 'hand-left-outline',
+  daily_greeting: 'sunny-outline',
   journey_started: 'rocket-outline',
   member_joined: 'person-add-outline',
   checkin_reminder: 'alarm-outline',

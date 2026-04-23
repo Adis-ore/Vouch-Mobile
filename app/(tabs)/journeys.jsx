@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, FlatList, ActivityIndicator, StyleSheet, Dimensions, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, FlatList, ActivityIndicator, StyleSheet, Dimensions, Linking, Animated, PanResponder } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
@@ -8,9 +8,11 @@ import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
 import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
-import { apiGetMyJourneys, apiGetDrafts, apiDeleteFormDraft, apiRetryPayment } from '../../utils/api'
+import { apiGetMyJourneys, apiGetDrafts, apiDeleteFormDraft, apiRetryPayment, apiPublishDraft, apiDeleteDraft } from '../../utils/api'
+import JourneyPassModal from '../../components/shared/JourneyPassModal'
 import { wasRecentlyCheckedIn } from '../../utils/checkinSignal'
 import { wasAbandoned, clearAbandoned } from '../../utils/abandonSignal'
+import { wasCompleted, clearCompleted } from '../../utils/completionSignal'
 import { logger } from '../../utils/logger'
 import ProgressBar from '../../components/journey/ProgressBar'
 import EmptyState from '../../components/shared/EmptyState'
@@ -19,6 +21,62 @@ import Avatar from '../../components/shared/Avatar'
 
 const TABS = ['Active', 'Past', 'Drafts']
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
+
+const SWIPE_THRESHOLD = 80
+
+function SwipeableDraftCard({ draft, onDelete, onPublish, publishing, colors, styles }) {
+  const translateX = useRef(new Animated.Value(0)).current
+
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+    onPanResponderMove: (_, g) => { if (g.dx > 0) translateX.setValue(g.dx) },
+    onPanResponderRelease: (_, g) => {
+      if (g.dx > SWIPE_THRESHOLD) {
+        Animated.timing(translateX, { toValue: 600, duration: 200, useNativeDriver: true })
+          .start(() => onDelete(draft.id))
+      } else {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start()
+      }
+    },
+  })).current
+
+  const trashOpacity = translateX.interpolate({ inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp' })
+
+  return (
+    <View style={{ position: 'relative' }}>
+      <Animated.View style={[styles.swipeBgDelete, { opacity: trashOpacity }]}>
+        <Ionicons name="trash-outline" size={20} color="#fff" />
+        <Text style={styles.swipeBgText}>Delete</Text>
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+        <View style={[styles.draftCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.draftCardTop}>
+            <Text style={[styles.draftCardTitle, { color: colors.textPrimary }]}>{draft.title || 'Untitled'}</Text>
+            {draft.stake_amount > 0 && <Text style={[styles.draftMeta, { color: colors.textMuted }]}>₦{Number(draft.stake_amount).toLocaleString()}</Text>}
+          </View>
+          {draft.category && (
+            <Text style={[styles.draftMeta, { color: colors.textMuted }]}>
+              {draft.category}{draft.duration_days ? ` · ${draft.duration_days}d` : ''}
+            </Text>
+          )}
+          <View style={styles.draftActions}>
+            <TouchableOpacity
+              style={[styles.draftBtn, { borderColor: colors.accent, flex: 1 }]}
+              onPress={() => onPublish(draft)}
+              disabled={publishing === draft.id}
+              activeOpacity={0.85}
+            >
+              {publishing === draft.id
+                ? <ActivityIndicator size="small" color={colors.accent} />
+                : <Text style={[styles.draftBtnText, { color: colors.accent }]}>Publish →</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  )
+}
 
 export default function MyJourneys() {
   const router = useRouter()
@@ -33,8 +91,11 @@ export default function MyJourneys() {
   const [pastJourneys, setPastJourneys] = useState([])
   const [formDrafts, setFormDrafts] = useState([])
   const [journeyDrafts, setJourneyDrafts] = useState([])
+  const [savedDrafts, setSavedDrafts] = useState([])
   const [loading, setLoading] = useState(true)
   const [retrying, setRetrying] = useState(null)
+  const [publishing, setPublishing] = useState(null)
+  const [journeyPassDraft, setJourneyPassDraft] = useState(null)
 
   const activeCount = activeJourneys.length
   const limit = getPlanLimit(user?.plan ?? 'free')
@@ -46,12 +107,14 @@ export default function MyJourneys() {
         apiGetMyJourneys(),
         apiGetDrafts().catch(() => ({ data: { formDrafts: [], journeyDrafts: [] } })),
       ])
-      const active = (journeysRes.data.active || []).filter(j => !wasAbandoned(j.id))
+      const active = (journeysRes.data.active || []).filter(j => !wasAbandoned(j.id) && !wasCompleted(j.id))
       const past = journeysRes.data.past || []
-      for (const j of past) clearAbandoned(j.id)
+      for (const j of past) { clearAbandoned(j.id); clearCompleted(j.id) }
       setActiveJourneys(active)
       setPastJourneys(past)
-      setFormDrafts(draftsRes.data.formDrafts || [])
+      const fd = draftsRes.data.formDrafts || []
+      setFormDrafts(fd.filter(d => !d.is_ready))
+      setSavedDrafts(fd.filter(d => d.is_ready))
       setJourneyDrafts(draftsRes.data.journeyDrafts || [])
       updateUser({ active_journey_count: (journeysRes.data.active || []).length })
     } catch (err) { logger.error('[JOURNEYS]', 'Failed to load', err.message) }
@@ -95,6 +158,35 @@ export default function MyJourneys() {
     try {
       await apiDeleteFormDraft(id)
       setFormDrafts(prev => prev.filter(d => d.id !== id))
+    } catch (_) {}
+  }
+
+  const handlePublishDraft = async (draft) => {
+    setPublishing(draft.id)
+    try {
+      const res = await apiPublishDraft(draft.id)
+      setSavedDrafts(prev => prev.filter(d => d.id !== draft.id))
+      if (res.payment_url) {
+        const sub = Linking.addEventListener('url', ({ url }) => {
+          if (url.startsWith('vouch://')) { sub.remove(); WebBrowser.dismissBrowser() }
+        })
+        await WebBrowser.openBrowserAsync(res.payment_url)
+        sub.remove()
+      }
+      await load()
+    } catch (err) {
+      if (err.code === 'JOURNEY_LIMIT_REACHED') {
+        setJourneyPassDraft(draft)
+      } else {
+        logger.error('[DRAFTS]', 'Publish failed', err.message)
+      }
+    } finally { setPublishing(null) }
+  }
+
+  const handleDeleteSavedDraft = async (id) => {
+    try {
+      await apiDeleteDraft(id)
+      setSavedDrafts(prev => prev.filter(d => d.id !== id))
     } catch (_) {}
   }
 
@@ -202,8 +294,26 @@ export default function MyJourneys() {
 
     if (tabIndex === 2) return (
       <ScrollView style={{ width: SCREEN_WIDTH }} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
-        {journeyDrafts.length === 0 && formDrafts.length === 0 && (
+        {journeyDrafts.length === 0 && formDrafts.length === 0 && savedDrafts.length === 0 && (
           <EmptyState title="No drafts" body="Incomplete journeys and failed payments will appear here." />
+        )}
+
+        {/* Saved / publishable drafts */}
+        {savedDrafts.length > 0 && (
+          <>
+            <Text style={[styles.draftSectionLabel, { color: colors.textMuted }]}>SAVED DRAFTS</Text>
+            {savedDrafts.map(d => (
+              <SwipeableDraftCard
+                key={d.id}
+                draft={d}
+                onDelete={handleDeleteSavedDraft}
+                onPublish={handlePublishDraft}
+                publishing={publishing}
+                colors={colors}
+                styles={styles}
+              />
+            ))}
+          </>
         )}
         {journeyDrafts.length > 0 && (
           <>
@@ -311,6 +421,14 @@ export default function MyJourneys() {
       )}
 
       <PlansModal visible={plansVisible} onClose={() => setPlansVisible(false)} />
+      <JourneyPassModal
+        visible={!!journeyPassDraft}
+        draftId={journeyPassDraft?.id}
+        draftTitle={journeyPassDraft?.title}
+        onClose={() => setJourneyPassDraft(null)}
+        onSuccess={async () => { setJourneyPassDraft(null); await load() }}
+        onUpgrade={() => setPlansVisible(true)}
+      />
     </SafeAreaView>
   )
 }
@@ -356,5 +474,7 @@ function makeStyles(colors) {
     draftBtn: { borderWidth: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
     draftBtnText: { fontFamily: fonts.bodyBold, fontSize: 14 },
     draftIconBtn: { width: 44, height: 44, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    swipeBgDelete: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 100, borderRadius: 14, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', gap: 4 },
+    swipeBgText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: '#fff' },
   })
 }

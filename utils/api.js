@@ -327,6 +327,22 @@ export async function apiRetryPayment(journeyId) {
   return request(`/drafts/journey/${journeyId}/retry-payment`, { method: 'POST' })
 }
 
+export async function apiSaveDraft(fields) {
+  return request('/drafts/save', { method: 'POST', body: fields })
+}
+
+export async function apiPublishDraft(draftId) {
+  return request(`/drafts/${draftId}/publish`, { method: 'POST' })
+}
+
+export async function apiDeleteDraft(draftId) {
+  return request(`/drafts/${draftId}`, { method: 'DELETE' })
+}
+
+export async function apiInitJourneyPass(draftId) {
+  return request('/payments/journey-pass/initialize', { method: 'POST', body: { draft_id: draftId } })
+}
+
 // ─── Checkins ────────────────────────────────────────────────────────────────
 
 export async function apiSubmitCheckin({ journey_id, note, proof_url, proof_type, next_step }) {
