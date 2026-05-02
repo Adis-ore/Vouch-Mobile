@@ -2,15 +2,6 @@ import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
-
-// Show notifications when the app is in the foreground (same as background behaviour)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-})
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { getItem, setItem, removeItem } from '../utils/storage'
@@ -35,6 +26,14 @@ import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { UserProvider, useUser } from '../context/UserContext'
 
 SplashScreen.preventAutoHideAsync()
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+})
 
 // Save real token + refresh token from backend response.
 // expires_in (seconds from now) is preferred over expires_at to avoid server clock skew.
