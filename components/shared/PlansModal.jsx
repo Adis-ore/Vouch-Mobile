@@ -5,6 +5,8 @@ import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
 import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
+import { FEATURES } from '../../constants/features'
+import ComingSoonModal from './ComingSoonModal'
 
 export const PLANS = [
   {
@@ -97,9 +99,16 @@ export default function PlansModal({ visible, onClose, highlightPlan }) {
   })).current
 
   const currentPlan = user?.plan ?? 'free'
+  const [comingSoonVisible, setComingSoonVisible] = useState(false)
+  const [comingSoonFeature, setComingSoonFeature] = useState('')
 
-  const handleSelect = async (planId) => {
+  const handleSelect = async (planId, planName) => {
     if (planId === currentPlan) return
+    if (!FEATURES.PAYMENTS_ENABLED) {
+      setComingSoonFeature(`${planName} Plan`)
+      setComingSoonVisible(true)
+      return
+    }
     setLoading(planId)
     await new Promise(r => setTimeout(r, 1500))
     updateUser({ plan: planId })
@@ -168,38 +177,51 @@ export default function PlansModal({ visible, onClose, highlightPlan }) {
                   ))}
                 </View>
 
-                <TouchableOpacity
-                  style={[
-                    styles.planBtn,
-                    {
-                      backgroundColor: isCurrent
-                        ? colors.surfaceAlt
-                        : isHighlighted
-                          ? colors.accent
-                          : colors.surface,
-                      borderColor: isCurrent ? colors.border : isHighlighted ? colors.accent : colors.border,
-                    },
-                  ]}
-                  onPress={() => handleSelect(plan.id)}
-                  disabled={isCurrent || !!loading}
-                  activeOpacity={0.85}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={isHighlighted ? colors.bg : colors.accent} size="small" />
-                  ) : isSuccess ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                      <Text style={[styles.planBtnText, { color: colors.success }]}>Done!</Text>
-                    </View>
-                  ) : (
-                    <Text style={[
-                      styles.planBtnText,
-                      { color: isCurrent ? colors.textMuted : isHighlighted ? colors.bg : colors.textPrimary }
-                    ]}>
-                      {isCurrent ? 'Current plan' : plan.cta}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                {(() => {
+                  const isComingSoon = !FEATURES.PAYMENTS_ENABLED && plan.id !== 'free' && !isCurrent
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.planBtn,
+                        {
+                          backgroundColor: isCurrent
+                            ? colors.surfaceAlt
+                            : isHighlighted
+                              ? isComingSoon ? colors.accent + '55' : colors.accent
+                              : colors.surface,
+                          borderColor: isCurrent ? colors.border : isHighlighted ? colors.accent : colors.border,
+                          opacity: isComingSoon ? 0.75 : 1,
+                        },
+                      ]}
+                      onPress={() => handleSelect(plan.id, plan.name)}
+                      disabled={isCurrent || !!loading}
+                      activeOpacity={0.85}
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color={isHighlighted ? colors.bg : colors.accent} size="small" />
+                      ) : isSuccess ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                          <Text style={[styles.planBtnText, { color: colors.success }]}>Done!</Text>
+                        </View>
+                      ) : isComingSoon ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="time-outline" size={14} color={isHighlighted ? colors.bg : colors.accent} />
+                          <Text style={[styles.planBtnText, { color: isHighlighted ? colors.bg : colors.accent }]}>
+                            Coming soon
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={[
+                          styles.planBtnText,
+                          { color: isCurrent ? colors.textMuted : isHighlighted ? colors.bg : colors.textPrimary }
+                        ]}>
+                          {isCurrent ? 'Current plan' : plan.cta}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  )
+                })()}
               </View>
             )
           })}
@@ -209,6 +231,12 @@ export default function PlansModal({ visible, onClose, highlightPlan }) {
           <Text style={[styles.closeBtnText, { color: colors.textMuted }]}>Maybe later</Text>
         </TouchableOpacity>
       </Animated.View>
+
+      <ComingSoonModal
+        visible={comingSoonVisible}
+        onClose={() => setComingSoonVisible(false)}
+        featureName={comingSoonFeature}
+      />
     </Modal>
   )
 }

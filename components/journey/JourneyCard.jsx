@@ -61,15 +61,6 @@ export default function JourneyCard({ journey, index = 0, onJoin }) {
             <View style={[styles.catBadge, { backgroundColor: catColor + '22', borderColor: catColor + '44' }]}>
               <Text style={[styles.catText, { color: catColor }]}>{journey.category}</Text>
             </View>
-            {journey.stake_amount > 0 ? (
-              <View style={styles.stakeBadge}>
-                <Text style={[styles.stakeText, { color: colors.danger }]}>₦{journey.stake_amount.toLocaleString()} stake</Text>
-              </View>
-            ) : (
-              <View style={styles.freeBadge}>
-                <Text style={[styles.freeText, { color: colors.success }]}>Free</Text>
-              </View>
-            )}
           </View>
           {/* Share icon top-right */}
           <TouchableOpacity style={[styles.shareIconBtn, { backgroundColor: colors.bg + 'CC' }]} onPress={handleShare} activeOpacity={0.8} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>

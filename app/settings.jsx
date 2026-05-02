@@ -181,7 +181,8 @@ export default function Settings() {
         <View style={styles.group}>
           <Row icon="help-circle-outline" label="FAQ" onPress={() => router.push('/faq')} colors={colors} styles={styles} />
           <Row icon="shield-outline" label="Privacy policy" onPress={() => router.push('/privacy')} colors={colors} styles={styles} />
-          <Row icon="document-text-outline" label="Terms of service" onPress={() => router.push('/terms')} last colors={colors} styles={styles} />
+          <Row icon="document-text-outline" label="Terms of service" onPress={() => router.push('/terms')} colors={colors} styles={styles} />
+          <Row icon="card-outline" label="Cancellation policy" onPress={() => router.push('/cancellation')} last colors={colors} styles={styles} />
         </View>
 
         {/* About */}
@@ -214,7 +215,7 @@ export default function Settings() {
               <Ionicons name="warning-outline" size={32} color={colors.danger} style={{ alignSelf: 'center' }} />
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Delete your account?</Text>
               <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                This will permanently delete your account, all journeys, and any held deposits will be forfeited.{'\n\n'}This cannot be undone.
+                This will permanently delete your account, all journeys, and check-in history.{'\n\n'}This cannot be undone.
               </Text>
 
               <View style={styles.confirmBlock}>

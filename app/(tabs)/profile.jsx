@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { FEATURES } from '../../constants/features'
 import { View, Text, TouchableOpacity, ScrollView, FlatList, Modal, StyleSheet, ActivityIndicator, Alert, Platform, ActionSheetIOS } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useFocusEffect } from 'expo-router'
@@ -25,7 +26,7 @@ const BADGE_CATALOG = [
   { key: 'journeys_3',     name: 'Triple Crown',      icon: 'medal-outline',           desc: 'Three journeys completed.',                               howToEarn: 'Complete 3 journeys.' },
   { key: 'journeys_5',     name: 'Consistent',        icon: 'star-outline',            desc: 'Five journeys completed.',                                howToEarn: 'Complete 5 journeys.' },
   { key: 'journeys_10',    name: 'Veteran',           icon: 'ribbon-outline',          desc: 'Ten journeys completed.',                                 howToEarn: 'Complete 10 journeys.' },
-  { key: 'stake_survivor', name: 'Stake Survivor',    icon: 'wallet-outline',          desc: 'Completed a staked journey and got your money back.',     howToEarn: 'Complete a journey that had a stake.' },
+  ...(FEATURES.STAKE_DEPOSITS ? [{ key: 'stake_survivor', name: 'Stake Survivor', icon: 'wallet-outline', desc: 'Completed a staked journey and got your money back.', howToEarn: 'Complete a journey that had a stake.' }] : []),
   { key: 'trusted',        name: 'Trusted',           icon: 'person-circle-outline',   desc: 'Your reputation score hit 80+.',                          howToEarn: 'Reach a reputation score of 80.' },
   { key: 'highly_trusted', name: 'Highly Trusted',    icon: 'shield-outline',          desc: 'Your reputation score hit 95+.',                          howToEarn: 'Reach a reputation score of 95.' },
 ]

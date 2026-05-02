@@ -147,6 +147,7 @@ function RootStack({ sessionChecked, hasSession }) {
         <Stack.Screen name="faq" />
         <Stack.Screen name="privacy" />
         <Stack.Screen name="terms" />
+        <Stack.Screen name="cancellation" />
       </Stack>
     </>
   )

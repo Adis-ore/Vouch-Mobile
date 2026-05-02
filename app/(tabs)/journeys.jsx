@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, FlatList, ActivityIndicator, StyleSheet, Dimensions, Linking, Animated, PanResponder } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, FlatList, ActivityIndicator, StyleSheet, Dimensions, Animated, PanResponder } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
@@ -18,6 +18,8 @@ import ProgressBar from '../../components/journey/ProgressBar'
 import EmptyState from '../../components/shared/EmptyState'
 import PlansModal, { getPlanLimit } from '../../components/shared/PlansModal'
 import Avatar from '../../components/shared/Avatar'
+import { FEATURES } from '../../constants/features'
+import ComingSoonModal from '../../components/shared/ComingSoonModal'
 
 const TABS = ['Active', 'Past', 'Drafts']
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -96,6 +98,7 @@ export default function MyJourneys() {
   const [retrying, setRetrying] = useState(null)
   const [publishing, setPublishing] = useState(null)
   const [journeyPassDraft, setJourneyPassDraft] = useState(null)
+  const [comingSoonVisible, setComingSoonVisible] = useState(false)
 
   const activeCount = activeJourneys.length
   const limit = getPlanLimit(user?.plan ?? 'free')
@@ -139,15 +142,15 @@ export default function MyJourneys() {
   }
 
   const retryPayment = async (journeyId) => {
+    if (!FEATURES.PAYMENTS_ENABLED) {
+      setComingSoonVisible(true)
+      return
+    }
     setRetrying(journeyId)
     try {
       const res = await apiRetryPayment(journeyId)
       if (!res.payment_url) { await load(); return }
-      const sub = Linking.addEventListener('url', ({ url: incoming }) => {
-        if (incoming.startsWith('vouch://')) { sub.remove(); WebBrowser.dismissBrowser() }
-      })
-      await WebBrowser.openBrowserAsync(res.payment_url)
-      sub.remove()
+      await WebBrowser.openAuthSessionAsync(res.payment_url, 'vouch://')
       await load()
     } catch (err) {
       logger.error('[JOURNEYS]', 'Retry payment failed', err.message)
@@ -167,11 +170,7 @@ export default function MyJourneys() {
       const res = await apiPublishDraft(draft.id)
       setSavedDrafts(prev => prev.filter(d => d.id !== draft.id))
       if (res.payment_url) {
-        const sub = Linking.addEventListener('url', ({ url }) => {
-          if (url.startsWith('vouch://')) { sub.remove(); WebBrowser.dismissBrowser() }
-        })
-        await WebBrowser.openBrowserAsync(res.payment_url)
-        sub.remove()
+        await WebBrowser.openAuthSessionAsync(res.payment_url, 'vouch://')
       }
       await load()
     } catch (err) {
@@ -428,6 +427,11 @@ export default function MyJourneys() {
         onClose={() => setJourneyPassDraft(null)}
         onSuccess={async () => { setJourneyPassDraft(null); await load() }}
         onUpgrade={() => setPlansVisible(true)}
+      />
+      <ComingSoonModal
+        visible={comingSoonVisible}
+        onClose={() => setComingSoonVisible(false)}
+        featureName="Journey Pass"
       />
     </SafeAreaView>
   )

@@ -2,9 +2,9 @@
 // Swap BASE_URL for your deployed URL when you go live
 
 // const BASE_URL = 'http://10.0.2.2:3000/api/v1' // Android emulator
-const BASE_URL = 'http://10.53.119.66:3000/api/v1' // Local WiFi — PC IP
+// const BASE_URL = 'http://10.53.119.66:3000/api/v1' // Local WiFi — PC IP
 // const BASE_URL = 'http://localhost:3000/api/v1' // iOS simulator
-// const BASE_URL = 'https://your-render-url.onrender.com/api/v1' // production
+const BASE_URL = 'https://vouch-backend-0q23.onrender.com/api/v1' // production
 
 import { getItem, setItem } from './storage'
 import { logger } from './logger'

@@ -9,6 +9,8 @@ import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
 import { getJourneyPassPrice } from '../../constants/journeyPass'
 import { apiInitJourneyPass } from '../../utils/api'
+import { FEATURES } from '../../constants/features'
+import ComingSoonModal from './ComingSoonModal'
 
 function BenefitRow({ text, colors, styles }) {
   return (
@@ -25,21 +27,22 @@ export default function JourneyPassModal({ visible, draftId, draftTitle, onClose
   const styles = makeStyles(colors)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [comingSoonVisible, setComingSoonVisible] = useState(false)
 
   const pricing = getJourneyPassPrice(user?.country)
 
   const handlePay = async () => {
+    if (!FEATURES.PAYMENTS_ENABLED) {
+      setComingSoonVisible(true)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
       const res = await apiInitJourneyPass(draftId)
       if (!res.payment_url) throw new Error('No payment URL returned')
 
-      const sub = Linking.addEventListener('url', ({ url }) => {
-        if (url.startsWith('vouch://')) { sub.remove(); WebBrowser.dismissBrowser() }
-      })
-      await WebBrowser.openBrowserAsync(res.payment_url)
-      sub.remove()
+      await WebBrowser.openAuthSessionAsync(res.payment_url, 'vouch://')
       // Payment complete — caller should re-try publish
       onSuccess?.()
     } catch (err) {
@@ -93,15 +96,21 @@ export default function JourneyPassModal({ visible, draftId, draftTitle, onClose
 
           {/* Pay button */}
           <TouchableOpacity
-            style={[styles.payBtn, { backgroundColor: colors.accent }, loading && { opacity: 0.7 }]}
+            style={[styles.payBtn, { backgroundColor: colors.accent }, (loading || !FEATURES.PAYMENTS_ENABLED) && { opacity: 0.7 }]}
             onPress={handlePay}
             disabled={loading}
             activeOpacity={0.85}
           >
-            {loading
-              ? <ActivityIndicator color={colors.bg} />
-              : <Text style={[styles.payBtnText, { color: colors.bg }]}>Pay {pricing.display} and publish</Text>
-            }
+            {loading ? (
+              <ActivityIndicator color={colors.bg} />
+            ) : !FEATURES.PAYMENTS_ENABLED ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="time-outline" size={16} color={colors.bg} />
+                <Text style={[styles.payBtnText, { color: colors.bg }]}>Coming soon</Text>
+              </View>
+            ) : (
+              <Text style={[styles.payBtnText, { color: colors.bg }]}>Pay {pricing.display} and publish</Text>
+            )}
           </TouchableOpacity>
 
           {/* Upgrade instead */}
@@ -113,6 +122,11 @@ export default function JourneyPassModal({ visible, draftId, draftTitle, onClose
 
         </View>
       </View>
+      <ComingSoonModal
+        visible={comingSoonVisible}
+        onClose={() => setComingSoonVisible(false)}
+        featureName="Journey Pass"
+      />
     </Modal>
   )
 }

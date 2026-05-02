@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
-  ActivityIndicator, Alert, Linking
+  ActivityIndicator, Alert
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -56,11 +56,7 @@ export default function JourneyPreview() {
       cacheJourney(journey)
 
       if (res.payment_url) {
-        const sub = Linking.addEventListener('url', ({ url: incoming }) => {
-          if (incoming.startsWith('vouch://')) { sub.remove(); WebBrowser.dismissBrowser() }
-        })
-        await WebBrowser.openBrowserAsync(res.payment_url)
-        sub.remove()
+        await WebBrowser.openAuthSessionAsync(res.payment_url, 'vouch://')
       }
 
       router.replace(`/journey/${id}`)

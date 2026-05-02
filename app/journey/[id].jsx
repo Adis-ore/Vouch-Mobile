@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fonts } from '../../constants/fonts'
 import { spacing } from '../../constants/spacing'
+import { FEATURES } from '../../constants/features'
 import { useTheme } from '../../context/ThemeContext'
 import { useUser } from '../../context/UserContext'
 import { apiGetJourney, apiGetCheckins, apiGetMessages, apiSendMessage, apiVerifyCheckin, apiLeaveJourney, apiAbandonJourney, apiStartJourney, apiEditMessage, apiDeleteMessage } from '../../utils/api'
@@ -255,14 +256,14 @@ export default function JourneyDetail() {
   const lossAmount = stake - refundAmount
 
   let encouragement = ''
-  if (completionPercent >= 85 && completionPercent < 90) encouragement = `You're ${90 - completionPercent}% away from getting 95% back (₦${Math.round(stake * 0.95).toLocaleString()}).`
-  else if (completionPercent >= 70 && completionPercent < 75) encouragement = `Just ${75 - completionPercent}% more and you'll recover ₦${Math.round(stake * 0.75).toLocaleString()}.`
+  if (FEATURES.STAKE_DEPOSITS) {
+    if (completionPercent >= 85 && completionPercent < 90) encouragement = `You're ${90 - completionPercent}% away from getting 95% back (₦${Math.round(stake * 0.95).toLocaleString()}).`
+    else if (completionPercent >= 70 && completionPercent < 75) encouragement = `Just ${75 - completionPercent}% more and you'll recover ₦${Math.round(stake * 0.75).toLocaleString()}.`
+  }
 
   const confirmLabel = isCreator
-    ? (stake > 0 ? `Abandon journey — all deposits forfeited` : 'Yes, abandon journey for everyone')
-    : (stake > 0
-        ? `Leave and ${refundPercent > 0 ? `receive ₦${refundAmount.toLocaleString()}` : 'lose deposit'}`
-        : 'Yes, leave journey')
+    ? 'Yes, abandon journey for everyone'
+    : 'Yes, leave journey'
 
   const renderTab = ({ item: tabIndex }) => {
     if (tabIndex === 0) return (
@@ -544,12 +545,12 @@ export default function JourneyDetail() {
           <View style={[styles.modalBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.modalPercent, { color: colors.accent }]}>{completionPercent}%</Text>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-              {stake > 0
-                ? `You've completed ${completionPercent}% of this journey`
-                : `You've done ${completionPercent}% of this journey`}
+              You've done {completionPercent}% of this journey
             </Text>
-            {encouragement ? <Text style={[styles.modalEncouragement, { color: colors.success }]}>{encouragement}</Text> : null}
-            {stake > 0 ? (
+            {FEATURES.STAKE_DEPOSITS && encouragement ? (
+              <Text style={[styles.modalEncouragement, { color: colors.success }]}>{encouragement}</Text>
+            ) : null}
+            {FEATURES.STAKE_DEPOSITS && stake > 0 ? (
               <>
                 <Text style={[styles.modalRefundLine, { color: colors.textSecondary }]}>
                   {refundPercent > 0
@@ -560,7 +561,7 @@ export default function JourneyDetail() {
               </>
             ) : (
               <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                You're {100 - completionPercent}% away from finishing. Are you sure you want to stop now?
+                Are you sure you want to leave? Your progress and streak will end.
               </Text>
             )}
             <Text style={[styles.modalBodySmall, { color: colors.textMuted }]}>Your partner and group are counting on you.</Text>

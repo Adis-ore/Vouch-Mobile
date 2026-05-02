@@ -17,8 +17,9 @@ import { cacheJourney } from '../../utils/journeyCache'
 import Button from '../../components/shared/Button'
 import CategoryChip from '../../components/shared/CategoryChip'
 import PlansModal, { getPlanLimit, getPlanMaxParticipants } from '../../components/shared/PlansModal'
+import { FEATURES } from '../../constants/features'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = FEATURES.STAKE_DEPOSITS ? 5 : 4
 const QUICK_DURATIONS = [7, 14, 21, 30, 60, 90]
 const QUICK_STAKES = [500, 1000, 2000, 5000]
 
@@ -212,7 +213,7 @@ export default function CreateJourney() {
         cover_image_url: uploadedCoverUrl || null,
         duration_days: activeDuration,
         max_participants: activeParticipants,
-        stake_amount: stakeEnabled ? stakeAmount : 0,
+        stake_amount: FEATURES.STAKE_DEPOSITS && stakeEnabled ? stakeAmount : 0,
         is_private: isPrivate,
         milestones: milestoneData,
       })
@@ -229,14 +230,7 @@ export default function CreateJourney() {
 
       if (res.payment_url) {
         logger.action('[CREATE]', 'Opening payment page', { journey_id: res.journey.id })
-        const sub = Linking.addEventListener('url', ({ url: incoming }) => {
-          if (incoming.startsWith('vouch://')) {
-            sub.remove()
-            WebBrowser.dismissBrowser()
-          }
-        })
-        await WebBrowser.openBrowserAsync(res.payment_url)
-        sub.remove()
+        await WebBrowser.openAuthSessionAsync(res.payment_url, 'vouch://')
 
         // Check whether the webhook has confirmed payment
         try {
@@ -468,8 +462,8 @@ export default function CreateJourney() {
           </View>
         )}
 
-        {/* STEP 4 — DEPOSIT */}
-        {step === 4 && (
+        {/* STEP 4 — DEPOSIT (Phase 2) */}
+        {FEATURES.STAKE_DEPOSITS && step === 4 && (
           <View style={styles.stepContainer}>
             <Text style={styles.prompt}>Security deposit</Text>
             <View style={[styles.toggleRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -512,8 +506,8 @@ export default function CreateJourney() {
           </View>
         )}
 
-        {/* STEP 5 — REVIEW */}
-        {step === 5 && (
+        {/* STEP 4/5 — REVIEW */}
+        {step === (FEATURES.STAKE_DEPOSITS ? 5 : 4) && (
           <View style={styles.stepContainer}>
             <Text style={styles.prompt}>Ready to publish?</Text>
             {publishError ? (
@@ -529,7 +523,7 @@ export default function CreateJourney() {
                 { label: 'Category', value: effectiveCategory || '—' },
                 { label: 'Duration', value: `${activeDuration} days` },
                 { label: 'Max members', value: String(activeParticipants) },
-                { label: 'Deposit', value: stakeEnabled ? `₦${stakeAmount.toLocaleString()}` : 'Free' },
+                ...(FEATURES.STAKE_DEPOSITS ? [{ label: 'Deposit', value: stakeEnabled ? `₦${stakeAmount.toLocaleString()}` : 'Free' }] : []),
                 { label: 'Milestones', value: `${milestoneCount} ${milestoneUnit.toLowerCase()}${milestoneCount !== 1 ? 's' : ''}` },
               ].map(row => (
                 <View key={row.label} style={[styles.reviewRow, { borderBottomColor: colors.border }]}>

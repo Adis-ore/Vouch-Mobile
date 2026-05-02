@@ -19,7 +19,7 @@ const FAQS = [
   { q: 'Who can see my check-ins?', a: "Only members of your journey can see your check-ins. They're not public. Your profile and stats are visible to anyone on Vouch." },
   { q: 'How do I find a journey to join?', a: 'Go to the Discover tab. You can filter by category (Fitness, Learning, Habit, etc.) and location. Journeys with open spots show a Join button.' },
   { q: 'Is Vouch free to use?', a: "Vouch is free. Stakes are optional — they're your own money that you get back on completion. We don't charge a platform fee." },
-  { q: 'How do I contact support?', a: 'Send an email to support@vouch.app. We typically respond within 24 hours.' },
+  { q: 'How do I contact support?', a: 'Send an email to vouchapp0@gmail.com. We typically respond within 24 hours.' },
 ]
 
 export default function FAQ() {

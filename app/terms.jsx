@@ -8,18 +8,20 @@ import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 
 const SECTIONS = [
-  { title: '1. Acceptance of terms', body: 'By creating an account or using Vouch, you agree to these Terms of Service. If you do not agree, do not use the app. We may update these terms — continued use after changes are posted means you accept the updated terms.' },
-  { title: '2. Eligibility', body: 'You must be at least 16 years old to use Vouch. By registering, you confirm that the information you provide is accurate and that you are legally permitted to enter into this agreement.' },
-  { title: '3. Your account', body: 'You are responsible for keeping your account credentials secure. Do not share your account. You are responsible for all activity that occurs under your account. Notify us immediately at support@vouch.app if you suspect unauthorised access.' },
-  { title: '4. Journeys and commitments', body: 'Journeys are voluntary commitments made between users. Vouch facilitates accountability but is not responsible for whether individual users complete their goals. Check-ins and milestones are user-generated content.' },
-  { title: '5. Stakes and payments', body: 'When you join a journey with a stake, you authorise a deposit via our payment partner (Paystack). If you forfeit your stake under the journey rules, those funds go to Vouch. They are not redistributed to other members. Completed journeys receive their deposit back within 3–5 business days. All payments are final.' },
-  { title: '6. User content', body: 'You retain ownership of content you post (check-in notes, photos, messages). By posting, you grant Vouch a non-exclusive, royalty-free licence to store, display, and share that content within the platform. You may not post illegal, harmful, or misleading content.' },
-  { title: '7. Prohibited conduct', body: "You may not: impersonate others, submit false check-ins, harass or abuse other users, attempt to circumvent platform rules, use Vouch for any unlawful purpose, or interfere with the platform's technical infrastructure." },
-  { title: '8. Reputation and scores', body: 'Reputation scores are calculated automatically based on your activity. We reserve the right to adjust or reset scores if we detect fraudulent check-ins or abuse of the verification system.' },
-  { title: '9. Termination', body: 'We may suspend or terminate your account if you violate these terms. You may delete your account at any time. Upon termination, your stake deposits that have not yet been resolved will be handled according to the journey rules in effect at the time.' },
-  { title: '10. Disclaimer', body: 'Vouch is provided "as is". We make no guarantees about uptime, data accuracy, or outcomes. We are not liable for any indirect or consequential damages arising from your use of the platform.' },
-  { title: '11. Governing law', body: 'These terms are governed by the laws of the Federal Republic of Nigeria. Any disputes will be resolved in the courts of Lagos State, Nigeria.' },
-  { title: '12. Contact', body: 'For questions about these terms, email legal@vouch.app. For general support, email support@vouch.app.' },
+  { title: '1. Acceptance of terms', body: 'By creating a Vouch account, you agree to these Terms of Service. If you do not agree, do not use the app.' },
+  { title: '2. Eligibility', body: 'You must be at least 13 years old to use Vouch. By creating an account, you confirm that you meet this age requirement. Users under 18 are responsible for ensuring they have parental awareness.' },
+  { title: '3. Your account', body: 'You are responsible for keeping your login credentials secure and for all activity that occurs under your account. You may not create multiple accounts or share your account with others. Notify us immediately at vouchapp0@gmail.com if you suspect unauthorised access.' },
+  { title: '4. Acceptable use', body: 'You agree not to: submit fake check-ins or misrepresent your progress; harass, threaten, or abuse other users; use Vouch for any illegal purpose; attempt to access other users\' private data; reverse engineer, copy, or resell any part of the platform; post content that is offensive, discriminatory, or harmful.' },
+  { title: '5. Subscriptions', body: 'Vouch offers Pro (₦1,500/month or ₦12,000/year), Elite (₦3,000/month or ₦24,000/year), and Journey Pass (₦800 one-time). Subscriptions are billed in advance. By subscribing, you authorise Paystack to charge your payment method on a recurring basis until you cancel. All payments are processed securely by Paystack. Vouch does not store your card or bank account details.' },
+  { title: '6. Cancellation and refunds', body: 'See our Cancellation Policy (Settings → Cancellation Policy) for full details on cancellations, refunds, and what happens when your subscription ends.' },
+  { title: '7. Content you submit', body: 'You retain ownership of content you submit (check-in notes, photos, voice notes). By submitting content, you grant Vouch a limited licence to display that content to members of your journey group. You are responsible for ensuring your content does not violate any third-party rights or applicable laws.' },
+  { title: '8. Suspension and termination', body: 'Vouch may suspend or permanently ban any account that repeatedly submits fake check-ins, harasses other users, violates these Terms, or engages in fraudulent activity. If your account is suspended for policy violations, subscription fees already paid are non-refundable.' },
+  { title: '9. Reputation and scores', body: 'Reputation scores are calculated automatically based on your activity. We reserve the right to adjust or reset scores if we detect fraudulent check-ins or abuse of the verification system.' },
+  { title: '10. Disclaimer', body: 'Vouch is provided "as is." We do not guarantee that the service will be uninterrupted or error-free. Accountability outcomes depend entirely on the effort and commitment of the users involved.' },
+  { title: '11. Limitation of liability', body: 'To the maximum extent permitted by law, Vouch shall not be liable for any indirect, incidental, or consequential damages arising from your use of the platform, including loss of data, failed goals, or disputes between users.' },
+  { title: '12. Governing law', body: 'These Terms are governed by the laws of the Federal Republic of Nigeria. Any disputes shall be resolved under Nigerian jurisdiction.' },
+  { title: '13. Changes to terms', body: 'We may update these Terms from time to time. Continued use of Vouch after changes are posted constitutes acceptance. We will notify users of significant changes through the app.' },
+  { title: '14. Contact', body: 'For questions about these Terms:\nEmail: vouchapp0@gmail.com\nFor general support: vouchapp0@gmail.com' },
 ]
 
 export default function Terms() {
@@ -37,7 +39,7 @@ export default function Terms() {
         <View style={{ width: 30 }} />
       </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.updated}>Last updated: January 2025</Text>
+        <Text style={styles.updated}>Last updated: April 2025</Text>
         <Text style={styles.intro}>These terms govern your use of Vouch. Please read them carefully.</Text>
         {SECTIONS.map((s, i) => (
           <View key={i} style={styles.section}>

@@ -10,6 +10,8 @@ import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 import { apiGetDrafts, apiDeleteFormDraft, apiRetryPayment, apiShelveJourneyDraft } from '../utils/api'
 import { logger } from '../utils/logger'
+import { FEATURES } from '../constants/features'
+import ComingSoonModal from '../components/shared/ComingSoonModal'
 
 export default function Drafts() {
   const router = useRouter()
@@ -19,6 +21,7 @@ export default function Drafts() {
   const [formDrafts, setFormDrafts] = useState([])
   const [journeyDrafts, setJourneyDrafts] = useState([])
   const [retrying, setRetrying] = useState(null)
+  const [comingSoonVisible, setComingSoonVisible] = useState(false)
 
   const load = async () => {
     try {
@@ -47,24 +50,19 @@ export default function Drafts() {
   }
 
   const retryPayment = async (journeyId) => {
+    if (!FEATURES.PAYMENTS_ENABLED) {
+      setComingSoonVisible(true)
+      return
+    }
     setRetrying(journeyId)
     try {
       const res = await apiRetryPayment(journeyId)
       if (!res.payment_url) {
-        // No payment needed (stake was 0 somehow) — journey is now open
+        // No payment needed — journey is now open
         load()
         return router.push(`/journey/${journeyId}`)
       }
-      const sub = Linking.addEventListener('url', ({ url: incoming }) => {
-        if (incoming.startsWith('vouch://')) {
-          sub.remove()
-          WebBrowser.dismissBrowser()
-        }
-      })
-      await WebBrowser.openBrowserAsync(res.payment_url)
-      sub.remove()
-
-      // Re-check status
+      await WebBrowser.openAuthSessionAsync(res.payment_url, 'vouch://')
       await load()
     } catch (err) {
       logger.error('[DRAFTS]', 'Retry payment failed', err.message)
@@ -185,6 +183,12 @@ export default function Drafts() {
           )}
         </ScrollView>
       )}
+
+      <ComingSoonModal
+        visible={comingSoonVisible}
+        onClose={() => setComingSoonVisible(false)}
+        featureName="Journey Pass"
+      />
     </SafeAreaView>
   )
 }
