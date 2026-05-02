@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
+import * as Notifications from 'expo-notifications'
+
+// Show notifications when the app is in the foreground (same as background behaviour)
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+})
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { getItem, setItem, removeItem } from '../utils/storage'
@@ -117,19 +127,14 @@ function RootStack({ sessionChecked, hasSession }) {
     }
   }, [sessionChecked, hasSession])
 
-  // Notification tap → deep-link
-  // Only available in a native dev build, not Expo Go (SDK 53 removed push from Expo Go)
-  // Uncomment when running `npx expo run:android` / `npx expo run:ios`
-  /*
+  // Notification tap → deep-link into the app
   useEffect(() => {
-    const N = require('expo-notifications')
-    const sub = N.addNotificationResponseReceivedListener(response => {
+    const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data
       if (data?.route) router.push({ pathname: data.route, params: data.params ?? {} })
     })
     return () => sub.remove()
   }, [])
-  */
 
   return (
     <>

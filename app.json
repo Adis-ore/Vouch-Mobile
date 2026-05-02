@@ -17,16 +17,34 @@
       "adaptiveIcon": {
         "backgroundColor": "#0A0F1E"
       },
-      "package": "app.vouch.mobile"
+      "package": "app.vouch.mobile",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
       [
+        "expo-notifications",
+        {
+          "color": "#E8A838"
+        }
+      ],
+      [
         "expo-image-picker",
-        { "photosPermission": "Allow Vouch to access your photos for check-in proof." }
+        {
+          "photosPermission": "Allow Vouch to access your photos for check-in proof."
+        }
       ],
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "50571195-53ef-4ee3-89d2-7f4d0a6fdc8b"
+      }
+    },
+    "owner": "adisdtechi"
   }
 }
