@@ -17,7 +17,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#0A0F1E"
       },
-      "package": "app.vouch.mobile",
+      "package": "com.adisdtechi.vouch",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]
