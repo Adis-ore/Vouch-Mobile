@@ -192,12 +192,39 @@ export default function RootLayout() {
     })
   }, [])
 
-  // Stamp last-active every time the app comes back to the foreground
+  // Stamp last-active + keep backend awake whenever the app is in the foreground
   useEffect(() => {
+    const PING_URL = 'https://vouch-backend-0q23.onrender.com/health'
+    const INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
+    let timer = null
+
+    const ping = () => fetch(PING_URL, { method: 'GET' }).catch(() => {})
+
+    const startPing = () => {
+      ping()
+      timer = setInterval(ping, INTERVAL_MS)
+    }
+
+    const stopPing = () => {
+      if (timer) { clearInterval(timer); timer = null }
+    }
+
+    // Start immediately (app is active on mount)
+    startPing()
+
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') touchLastActive()
+      if (state === 'active') {
+        touchLastActive()
+        startPing()
+      } else {
+        stopPing()
+      }
     })
-    return () => sub.remove()
+
+    return () => {
+      stopPing()
+      sub.remove()
+    }
   }, [])
 
   useEffect(() => {
