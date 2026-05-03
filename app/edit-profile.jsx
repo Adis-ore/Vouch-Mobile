@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,7 +7,7 @@ import { fonts } from '../constants/fonts'
 import { spacing } from '../constants/spacing'
 import { useTheme } from '../context/ThemeContext'
 import { useUser } from '../context/UserContext'
-import { apiUpdateMe } from '../utils/api'
+import { apiUpdateMe, apiUploadAvatarImage } from '../utils/api'
 import Avatar from '../components/shared/Avatar'
 import Button from '../components/shared/Button'
 
@@ -18,11 +18,11 @@ export default function EditProfile() {
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [fullName, setFullName] = useState(user?.full_name ?? '')
-  const [username, setUsername] = useState(user?.username ?? '')
   const [bio, setBio] = useState(user?.bio ?? '')
   const [region, setRegion] = useState(user?.region ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
 
   const save = async () => {
     if (!fullName.trim()) return
@@ -62,17 +62,31 @@ export default function EditProfile() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TouchableOpacity style={styles.avatarWrap} onPress={async () => {
-            const result = await (await import('expo-image-picker')).launchImageLibraryAsync({ allowsEditing: false, quality: 0.7 })
-            if (!result.canceled) updateUser({ avatar_url: result.assets[0].uri })
-          }} activeOpacity={0.8}>
+            const { launchImageLibraryAsync } = await import('expo-image-picker')
+            const result = await launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 })
+            if (result.canceled) return
+            const localUri = result.assets[0].uri
+            updateUser({ avatar_url: localUri }) // optimistic preview
+            setAvatarUploading(true)
+            try {
+              const publicUrl = await apiUploadAvatarImage(localUri)
+              const res = await apiUpdateMe({ avatar_url: publicUrl, avatar_seed: null })
+              if (res?.data?.user) updateUser(res.data.user)
+            } catch (err) {
+              Alert.alert('Photo upload failed', err.message)
+            } finally {
+              setAvatarUploading(false)
+            }
+          }} activeOpacity={0.8} disabled={avatarUploading}>
             <Avatar name={fullName || user?.full_name || 'You'} uri={user?.avatar_url} avatarSeed={user?.avatar_seed} avatarBg={user?.avatar_bg} size={80} />
             <View style={styles.avatarEdit}>
-              <Ionicons name="camera-outline" size={14} color={colors.bg} />
+              {avatarUploading
+                ? <ActivityIndicator size="small" color={colors.bg} />
+                : <Ionicons name="camera-outline" size={14} color={colors.bg} />}
             </View>
           </TouchableOpacity>
 
           <Field label="Full name" value={fullName} onChange={setFullName} placeholder="Your full name" colors={colors} styles={styles} />
-          <Field label="Username" value={username} onChange={setUsername} placeholder="username" prefix="@" colors={colors} styles={styles} />
           <Field label="Bio" value={bio} onChange={setBio} placeholder="A short bio..." multiline colors={colors} styles={styles} />
           <Field label="Region" value={region} onChange={setRegion} placeholder="e.g. Lagos" colors={colors} styles={styles} />
 

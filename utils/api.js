@@ -247,6 +247,33 @@ export async function apiUpdateMe(fields) {
   return request('/users/me', { method: 'PATCH', body: fields })
 }
 
+export async function apiUploadAvatarImage(localUri) {
+  const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
+  const token = await getToken()
+  if (!token) throw new Error('Not authenticated')
+  const filename = `avatars/${Date.now()}.jpg`
+
+  const result = await FileSystem.uploadAsync(
+    `${SUPABASE_URL}/storage/v1/object/avatars/${filename}`,
+    localUri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-upsert': 'true',
+      },
+    }
+  )
+
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(`Avatar upload failed: ${result.body}`)
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${filename}`
+}
+
 export async function apiUploadCoverImage(localUri) {
   const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
   const token = await getToken()

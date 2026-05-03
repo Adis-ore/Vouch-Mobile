@@ -15,7 +15,9 @@
       },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
-        "npm_config_legacy_peer_deps": "true"
+        "npm_config_legacy_peer_deps": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://afcngcmbqjzlzurauomb.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmY25nY21icWp6bHp1cmF1b21iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTQxMTQsImV4cCI6MjA5MTI3MDExNH0.z8o67MLd0R3Cg4_iFY00DPitGXQAkKSdCH7TWzqta6w"
       }
     },
     "production": {
