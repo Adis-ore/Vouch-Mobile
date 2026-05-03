@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View } from 'react-native'
+import { View, AppState } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { StatusBar } from 'expo-status-bar'
@@ -35,6 +35,12 @@ Notifications.setNotificationHandler({
   }),
 })
 
+const INACTIVITY_LIMIT_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+async function touchLastActive() {
+  await setItem('vouch_last_active', String(Date.now()))
+}
+
 // Save real token + refresh token from backend response.
 // expires_in (seconds from now) is preferred over expires_at to avoid server clock skew.
 // Falls back to expires_at (Unix seconds) → 1 hour if both are absent.
@@ -51,11 +57,13 @@ export async function saveSession({ token, refresh_token, expires_at, expires_in
     expiry = Date.now() + 60 * 60 * 1000
   }
   await setItem('vouch_session', JSON.stringify({ token, refresh_token, expiry }))
+  await touchLastActive()
   logger.info('[SESSION]', 'Session saved', { expiresAt: new Date(expiry).toISOString() })
 }
 
 export async function clearSession() {
   await removeItem('vouch_session')
+  await removeItem('vouch_last_active')
   logger.info('[SESSION]', 'Session cleared')
 }
 
@@ -72,9 +80,18 @@ async function hasValidSession() {
       return false
     }
 
+    // Enforce 7-day inactivity logout
+    const lastActiveRaw = await getItem('vouch_last_active')
+    if (lastActiveRaw && Date.now() - Number(lastActiveRaw) > INACTIVITY_LIMIT_MS) {
+      logger.info('[SESSION]', 'Inactive for 7+ days — clearing session')
+      await clearSession()
+      return false
+    }
+
     // Token still valid
     if (Date.now() < expiry) {
       logger.info('[SESSION]', 'Session valid', { expiresAt: new Date(expiry).toISOString() })
+      await touchLastActive()
       return true
     }
 
@@ -173,6 +190,14 @@ export default function RootLayout() {
       setHasSession(valid)
       setSessionChecked(true)
     })
+  }, [])
+
+  // Stamp last-active every time the app comes back to the foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') touchLastActive()
+    })
+    return () => sub.remove()
   }, [])
 
   useEffect(() => {
