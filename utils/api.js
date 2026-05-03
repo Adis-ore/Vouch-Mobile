@@ -6,6 +6,7 @@
 // const BASE_URL = 'http://localhost:3000/api/v1' // iOS simulator
 const BASE_URL = 'https://vouch-backend-0q23.onrender.com/api/v1' // production
 
+import * as FileSystem from 'expo-file-system'
 import { getItem, setItem } from './storage'
 import { logger } from './logger'
 
@@ -252,22 +253,22 @@ export async function apiUploadCoverImage(localUri) {
   if (!token) throw new Error('Not authenticated')
   const filename = `covers/${Date.now()}.jpg`
 
-  const fileRes = await fetch(localUri)
-  const blob = await fileRes.blob()
+  const result = await FileSystem.uploadAsync(
+    `${SUPABASE_URL}/storage/v1/object/journey-covers/${filename}`,
+    localUri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-upsert': 'true',
+      },
+    }
+  )
 
-  const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/journey-covers/${filename}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'image/jpeg',
-      'x-upsert': 'true',
-    },
-    body: blob,
-  })
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text()
-    throw new Error(`Image upload failed: ${err}`)
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(`Image upload failed: ${result.body}`)
   }
 
   return `${SUPABASE_URL}/storage/v1/object/public/journey-covers/${filename}`
@@ -280,26 +281,26 @@ export async function apiDeleteAccount() {
 
 export async function apiUploadCheckinImage(localUri) {
   const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
-  const token = await getToken() // user JWT — required for authenticated storage policy
+  const token = await getToken()
   if (!token) throw new Error('Not authenticated')
   const filename = `proofs/${Date.now()}.jpg`
 
-  const fileRes = await fetch(localUri)
-  const blob = await fileRes.blob()
+  const result = await FileSystem.uploadAsync(
+    `${SUPABASE_URL}/storage/v1/object/checkin-proofs/${filename}`,
+    localUri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-upsert': 'true',
+      },
+    }
+  )
 
-  const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/checkin-proofs/${filename}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'image/jpeg',
-      'x-upsert': 'true',
-    },
-    body: blob,
-  })
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text()
-    throw new Error(`Image upload failed: ${err}`)
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(`Image upload failed: ${result.body}`)
   }
 
   return `${SUPABASE_URL}/storage/v1/object/public/checkin-proofs/${filename}`
